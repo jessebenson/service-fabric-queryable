@@ -2,6 +2,7 @@
 using Microsoft.ServiceFabric.Services.Runtime;
 using System.Collections.Generic;
 using System.Fabric;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
@@ -22,7 +23,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 		Task<IEnumerable<string>> IQueryableService.QueryAsync(string collection, IEnumerable<KeyValuePair<string, string>> query)
 		{
-			return StateManager.QueryAsync(collection, query);
+			return StateManager.QueryAsync(collection, query, CancellationToken.None);
 		}
 	}
 }

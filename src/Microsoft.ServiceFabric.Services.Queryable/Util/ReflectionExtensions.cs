@@ -39,58 +39,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return (IEnumerable)castGenericMethod.Invoke(null, new object[] { enumerable });
 		}
 
-		/// <summary>
-		/// Get the key type from the reliable dictionary.
-		/// </summary>
-		/// <param name="state">Reliable dictionary instance.</param>
-		/// <returns>The type of the dictionary's keys.</returns>
-		public static Type GetKeyType(this IReliableState state)
-		{
-			if (!state.ImplementsGenericType(typeof(IReliableDictionary<,>)))
-				throw new ArgumentException(nameof(state));
-
-			return state.GetType().GetGenericArguments()[0];
-		}
-
-		/// <summary>
-		/// Get the value type from the reliable dictionary.
-		/// </summary>
-		/// <param name="state">Reliable dictionary instance.</param>
-		/// <returns>The type of the dictionary's values.</returns>
-		public static Type GetValueType(this IReliableState state)
-		{
-			if (!state.ImplementsGenericType(typeof(IReliableDictionary<,>)))
-				throw new ArgumentException(nameof(state));
-
-			return state.GetType().GetGenericArguments()[1];
-		}
-
-		public static IEnumerable<object> ToEnumerable(this IQueryable queryable)
-		{
-			var enumerator = queryable.GetEnumerator();
-			while (enumerator.MoveNext())
-			{
-				yield return enumerator.Current;
-			}
-		}
-
-		public static Type GetTypeByName(string className)
-		{
-			foreach (var a in AppDomain.CurrentDomain.GetAssemblies())
-			{
-				var assemblyTypes = a.GetTypes();
-				foreach (Type t in assemblyTypes)
-				{
-					if (t.Name == className)
-					{
-						return t;
-					}
-				}
-			}
-
-			return null;
-		}
-
 		public static TReturn CallMethod<TReturn>(this object instance, string methodName, params object[] parameters)
 		{
 			return (TReturn)instance.GetType().GetMethod(methodName).Invoke(instance, parameters);
