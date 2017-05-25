@@ -1,1 +1,1 @@
-# service-fabric-queryable
+# Microsoft.ServiceFabric.Services.Queryable
