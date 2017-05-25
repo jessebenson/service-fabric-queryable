@@ -27,40 +27,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		}
 
 		/// <summary>
-		/// Reads all values from the reliable state into an in-memory collection.
-		/// </summary>
-		/// <param name="state">Reliable state (must implement <see cref="IReliableDictionary{TKey, TValue}"/>).</param>
-		/// <param name="stateManager">Reliable state manager, to create a transaction.</param>
-		/// <returns>All values from the reliable state in an in-memory collection.</returns>
-		public static async Task<IEnumerable<object>> ToEnumerable(this IReliableState state, IReliableStateManager stateManager)
-		{
-			if (!state.ImplementsGenericType(typeof(IReliableDictionary<,>)))
-				throw new ArgumentException(nameof(state));
-
-			var results = new List<object>();
-			using (var tx = stateManager.CreateTransaction())
-			{
-				// Create the async enumerable.
-				var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(state.GetType().GetGenericArguments());
-				var createEnumerableAsyncTask = state.CallMethod<Task>("CreateEnumerableAsync", new[] { typeof(ITransaction) }, tx);
-				await createEnumerableAsyncTask.ConfigureAwait(false);
-
-				var asyncEnumerable = createEnumerableAsyncTask.GetPropertyValue<object>("Result");
-				var asyncEnumerator = asyncEnumerable.CallMethod<object>("GetAsyncEnumerator");
-
-				// Copy all items from the reliable dictionary into memory.
-				while (await asyncEnumerator.CallMethod<Task<bool>>("MoveNextAsync", CancellationToken.None).ConfigureAwait(false))
-				{
-					var current = asyncEnumerator.GetPropertyValue<object>("Current");
-					var value = current.GetPropertyValue<object>("Value");
-					results.Add(value);
-				}
-			}
-
-			return results;
-		}
-
-		/// <summary>
 		/// Casts the given object enumerable to an enumerable of the given type.
 		/// </summary>
 		/// <param name="enumerable">Object enumerable to cast.</param>
@@ -125,17 +91,17 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return null;
 		}
 
-		private static TReturn CallMethod<TReturn>(this object instance, string methodName, params object[] parameters)
+		public static TReturn CallMethod<TReturn>(this object instance, string methodName, params object[] parameters)
 		{
 			return (TReturn)instance.GetType().GetMethod(methodName).Invoke(instance, parameters);
 		}
 
-		private static TReturn CallMethod<TReturn>(this object instance, string methodName, Type[] parameterTypes, params object[] parameters)
+		public static TReturn CallMethod<TReturn>(this object instance, string methodName, Type[] parameterTypes, params object[] parameters)
 		{
 			return (TReturn)instance.GetType().GetMethod(methodName, parameterTypes).Invoke(instance, parameters);
 		}
 
-		private static TReturn GetPropertyValue<TReturn>(this object instance, string propertyName)
+		public static TReturn GetPropertyValue<TReturn>(this object instance, string propertyName)
 		{
 			var property = instance.GetType().GetProperty(propertyName);
 			return (TReturn)property?.GetValue(instance);

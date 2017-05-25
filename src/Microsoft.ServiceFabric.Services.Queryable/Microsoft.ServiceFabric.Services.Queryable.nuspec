@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Microsoft.ServiceFabric.Services.Queryable</id>
+    <version>$version$</version>
+    <title>$title$</title>
+    <authors>jessebenson</authors>
+    <owners>jessebenson</owners>
+    <licenseUrl>https://opensource.org/licenses/MIT</licenseUrl>
+    <projectUrl>https://github.com/jessebenson/service-fabric-queryable</projectUrl>
+    <iconUrl>http://go.microsoft.com/fwlink/?LinkID=288890</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Query support for Service Fabric stateful services.</description>
+    <releaseNotes></releaseNotes>
+    <copyright>Copyright 2017</copyright>
+    <tags>Microsoft ServiceFabric Query Queryable Viewer</tags>
+  </metadata>
+</package>
