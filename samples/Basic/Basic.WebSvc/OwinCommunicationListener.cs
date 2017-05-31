@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Fabric;
 using System.Globalization;
 using System.Threading;
@@ -12,7 +11,6 @@ namespace Basic.WebSvc
 {
 	internal class OwinCommunicationListener : ICommunicationListener
 	{
-		private readonly ServiceEventSource eventSource;
 		private readonly Action<IAppBuilder> startup;
 		private readonly ServiceContext serviceContext;
 		private readonly string endpointName;
@@ -22,37 +20,16 @@ namespace Basic.WebSvc
 		private string publishAddress;
 		private string listeningAddress;
 
-		public OwinCommunicationListener(Action<IAppBuilder> startup, ServiceContext serviceContext, ServiceEventSource eventSource, string endpointName)
-			: this(startup, serviceContext, eventSource, endpointName, null)
+		public OwinCommunicationListener(Action<IAppBuilder> startup, ServiceContext serviceContext, string endpointName)
+			: this(startup, serviceContext, endpointName, null)
 		{
 		}
 
-		public OwinCommunicationListener(Action<IAppBuilder> startup, ServiceContext serviceContext, ServiceEventSource eventSource, string endpointName, string appRoot)
+		public OwinCommunicationListener(Action<IAppBuilder> startup, ServiceContext serviceContext, string endpointName, string appRoot)
 		{
-			if (startup == null)
-			{
-				throw new ArgumentNullException(nameof(startup));
-			}
-
-			if (serviceContext == null)
-			{
-				throw new ArgumentNullException(nameof(serviceContext));
-			}
-
-			if (endpointName == null)
-			{
-				throw new ArgumentNullException(nameof(endpointName));
-			}
-
-			if (eventSource == null)
-			{
-				throw new ArgumentNullException(nameof(eventSource));
-			}
-
-			this.startup = startup;
-			this.serviceContext = serviceContext;
-			this.endpointName = endpointName;
-			this.eventSource = eventSource;
+			this.startup = startup ?? throw new ArgumentNullException(nameof(startup));
+			this.serviceContext = serviceContext ?? throw new ArgumentNullException(nameof(serviceContext));
+			this.endpointName = endpointName ?? throw new ArgumentNullException(nameof(endpointName));
 			this.appRoot = appRoot;
 		}
 
@@ -97,37 +74,25 @@ namespace Basic.WebSvc
 
 			try
 			{
-				this.eventSource.ServiceMessage(this.serviceContext, "Starting web server on " + this.listeningAddress);
-
 				this.webApp = WebApp.Start(this.listeningAddress, appBuilder => this.startup.Invoke(appBuilder));
-
-				this.eventSource.ServiceMessage(this.serviceContext, "Listening on " + this.publishAddress);
 
 				return Task.FromResult(this.publishAddress);
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				this.eventSource.ServiceMessage(this.serviceContext, "Web server failed to open. " + ex.ToString());
-
 				this.StopWebServer();
-
 				throw;
 			}
 		}
 
 		public Task CloseAsync(CancellationToken cancellationToken)
 		{
-			this.eventSource.ServiceMessage(this.serviceContext, "Closing web server");
-
 			this.StopWebServer();
-
 			return Task.FromResult(true);
 		}
 
 		public void Abort()
 		{
-			this.eventSource.ServiceMessage(this.serviceContext, "Aborting web server");
-
 			this.StopWebServer();
 		}
 

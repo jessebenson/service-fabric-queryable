@@ -119,14 +119,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Controllers\ProductsController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Controllers\QueryController.cs" />
     <Compile Include="OwinCommunicationListener.cs" />
     <Compile Include="WebSvc.cs" />
     <Compile Include="Program.cs" />
-    <Compile Include="ServiceEventSource.cs" />
     <Compile Include="Startup.cs" />
-    <Compile Include="ServiceRequestActionFilterAttribute.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="PackageRoot\Config\Settings.xml" />

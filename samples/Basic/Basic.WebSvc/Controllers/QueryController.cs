@@ -1,11 +1,9 @@
 ﻿using Microsoft.ServiceFabric.Services.Queryable;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Web.Http;
 
 namespace Basic.WebSvc.Controllers
 {
-	[ServiceRequestActionFilter]
 	public class QueryController : QueryableController
 	{
 		[HttpGet] // GET query/{application}/{service}/$metadata

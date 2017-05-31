@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
-using Microsoft.ServiceFabric.Services.Runtime;
 using Microsoft.ServiceFabric.Services.Queryable;
 using Microsoft.ServiceFabric.Services.Remoting.Runtime;
 using Basic.Common;
@@ -16,7 +15,7 @@ namespace Basic.ProductSvc
 	/// <summary>
 	/// An instance of this class is created for each service replica by the Service Fabric runtime.
 	/// </summary>
-	internal sealed class ProductSvc : QueryableService
+	internal sealed class ProductSvc : QueryableService, IProductService
 	{
 		public ProductSvc(StatefulServiceContext context)
 			: base(context)
@@ -44,7 +43,7 @@ namespace Basic.ProductSvc
 		/// <param name="cancellationToken">Canceled when Service Fabric needs to shut down this service replica.</param>
 		protected override async Task RunAsync(CancellationToken cancellationToken)
 		{
-			var products = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products");
+			var products = await GetProductsStateAsync();
 
 			// Add some initial products.
 			int partitionIndex = await GetPartitionIndex().ConfigureAwait(false);
@@ -68,6 +67,43 @@ namespace Basic.ProductSvc
 				var partitionList = await client.QueryManager.GetPartitionListAsync(Context.ServiceName).ConfigureAwait(false);
 				var partitions = partitionList.Select(p => p.PartitionInformation.Id).OrderBy(id => id).ToList();
 				return partitions.IndexOf(Context.PartitionId);
+			}
+		}
+
+		private Task<IReliableDictionary<string, Product>> GetProductsStateAsync()
+		{
+			return this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products");
+		}
+
+		async Task<Product> IProductService.GetProductAsync(string sku)
+		{
+			var products = await GetProductsStateAsync();
+			using (var tx = StateManager.CreateTransaction())
+			{
+				var result = await products.TryGetValueAsync(tx, sku).ConfigureAwait(false);
+				await tx.CommitAsync().ConfigureAwait(false);
+				return result.Value;
+			}
+		}
+
+		async Task IProductService.UpdateProductAsync(Product product)
+		{
+			var products = await GetProductsStateAsync();
+			using (var tx = StateManager.CreateTransaction())
+			{
+				await products.SetAsync(tx, product.Sku, product).ConfigureAwait(false);
+				await tx.CommitAsync().ConfigureAwait(false);
+			}
+		}
+
+		async Task<Product> IProductService.DeleteProductAsync(string sku)
+		{
+			var products = await GetProductsStateAsync();
+			using (var tx = StateManager.CreateTransaction())
+			{
+				var result = await products.TryRemoveAsync(tx, sku).ConfigureAwait(false);
+				await tx.CommitAsync().ConfigureAwait(false);
+				return result.Value;
 			}
 		}
 	}
