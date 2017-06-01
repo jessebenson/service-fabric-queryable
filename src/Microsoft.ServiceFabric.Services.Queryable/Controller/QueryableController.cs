@@ -51,15 +51,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				var query = Request.GetQueryNameValuePairs();
 
-				// Query all service partitions concurrently.
-				var proxies = await GetServiceProxiesAsync<IQueryableService>(serviceUri).ConfigureAwait(false);
-				var results = await Task.WhenAll(proxies.Select(p => p.QueryAsync(collection, query))).ConfigureAwait(false);
+				// Query one service partition, allowing the partition to do the distributed query.
+				var proxy = await GetServiceProxyAsync<IQueryableService>(serviceUri).ConfigureAwait(false);
+				var results = await proxy.QueryAsync(collection, query).ConfigureAwait(false);
 
 				// Construct the final, aggregated result.
 				var result = new ODataResult
 				{
 					ODataMetadata = "",
-					Value = GetQueryResult(results, query),
+					Value = results.Select(JsonConvert.DeserializeObject<JObject>),
 				};
 
 				return Ok(result);
@@ -86,46 +86,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return InternalServerError(e);
 		}
 
-		private static IEnumerable<JObject> GetQueryResult(IEnumerable<string>[] results, IEnumerable<KeyValuePair<string, string>> query)
-		{
-			var result = results.SelectMany(r => r);
-
-			// Each individual service will return up to $top items.  We have to limit the final result to a total of $top items.
-			int? top = GetTop(query);
-			if (top != null)
-			{
-				result = result.Take(top.Value);
-			}
-
-			return result.Select(r => JsonConvert.DeserializeObject<JObject>(r));
-		}
-
-		private static int? GetTop(IEnumerable<KeyValuePair<string, string>> query)
-		{
-			foreach (var q in query)
-			{
-				if (q.Key == "$top")
-					return int.Parse(q.Value);
-			}
-
-			return null;
-		}
-
 		private static async Task<T> GetServiceProxyAsync<T>(Uri serviceUri) where T : IService
 		{
 			using (var client = new FabricClient())
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
 				return CreateServiceProxy<T>(serviceUri, partitions.First());
-			}
-		}
-
-		private static async Task<IEnumerable<T>> GetServiceProxiesAsync<T>(Uri serviceUri) where T : IService
-		{
-			using (var client = new FabricClient())
-			{
-				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
-				return partitions.Select(p => CreateServiceProxy<T>(serviceUri, p));
 			}
 		}
 

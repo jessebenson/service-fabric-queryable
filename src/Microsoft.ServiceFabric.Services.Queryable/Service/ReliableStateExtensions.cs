@@ -2,9 +2,14 @@
 using Microsoft.Data.OData;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
+using Microsoft.ServiceFabric.Services.Client;
+using Microsoft.ServiceFabric.Services.Remoting;
+using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Fabric;
+using System.Fabric.Query;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -55,7 +60,61 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="query">OData query parameters.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
-		public static async Task<IEnumerable<string>> QueryAsync(this IReliableStateManager stateManager, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
+		public static async Task<IEnumerable<string>> QueryAsync(this IReliableStateManager stateManager, StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
+		{
+			// Query all service partitions concurrently.
+			var proxies = await GetServiceProxiesAsync<IQueryableService>(context).ConfigureAwait(false);
+			var queries = proxies.Select(p => p.QueryPartitionAsync(collection, query)).Concat(new[] { stateManager.QueryPartitionAsync(collection, query, cancellationToken) });
+			var queryResults = await Task.WhenAll(queries).ConfigureAwait(false);
+			var results = queryResults.SelectMany(r => r);
+
+			// Filter the data again, if we have to aggregate multiple results (e.g. for top, orderby).
+			if (query.Any() && proxies.Any())
+			{
+				var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+				var valueType = reliableState.GetValueType();
+				var objects = results.Select(r => JsonConvert.DeserializeObject(r, valueType));
+				results = ApplyQuery(objects, valueType, query).Select(JsonConvert.SerializeObject);
+			}
+
+			// Return the filtered data as json.
+			return results;
+		}
+		
+		/// <summary>
+		/// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
+		/// </summary>
+		/// <param name="stateManager">Reliable state manager for the replica.</param>
+		/// <param name="collection">Name of the reliable collection.</param>
+		/// <param name="query">OData query parameters.</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
+		/// <returns>The json serialized results of the query.</returns>
+		public static async Task<IEnumerable<string>> QueryPartitionAsync(this IReliableStateManager stateManager, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
+		{
+			// Find the reliable state.
+			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+
+			// Get the data from the reliable state.
+			var results = await reliableState.GetEnumerable(stateManager, cancellationToken).ConfigureAwait(false);
+
+			// Filter the data.
+			if (query.Any())
+			{
+				var valueType = reliableState.GetValueType();
+				results = ApplyQuery(results, valueType, query);
+			}
+
+			// Return the filtered data as json.
+			return results.Select(JsonConvert.SerializeObject);
+		}
+
+		/// <summary>
+		/// Get the queryable reliable collection by name.
+		/// </summary>
+		/// <param name="stateManager">Reliable state manager for the replica.</param>
+		/// <param name="collection">Name of the reliable collection.</param>
+		/// <returns>The reliable collection that supports querying.</returns>
+		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
 		{
 			// Find the reliable state.
 			var reliableStateResult = await stateManager.TryGetAsync<IReliableState>(collection).ConfigureAwait(false);
@@ -67,18 +126,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			if (!reliableState.ImplementsGenericType(typeof(IReliableDictionary<,>)))
 				throw new ArgumentException($"IReliableState '{collection}' must be an IReliableDictionary.");
 
-			// Get the data from the reliable state.
-			var results = await stateManager.GetEnumerable(reliableState, cancellationToken).ConfigureAwait(false);
-
-			// Filter the data.
-			if (query.Any())
-			{
-				var valueType = reliableState.GetValueType();
-				results = ApplyQuery(results, valueType, query);
-			}
-
-			// Return the filtered data as json.
-			return results.Select(JsonConvert.SerializeObject);
+			return reliableState;
 		}
 
 		/// <summary>
@@ -136,7 +184,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager, to create a transaction.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>All values from the reliable state in an in-memory collection.</returns>
-		private static async Task<IEnumerable<object>> GetEnumerable(this IReliableStateManager stateManager, IReliableState state, CancellationToken cancellationToken)
+		private static async Task<IEnumerable<object>> GetEnumerable(this IReliableState state, IReliableStateManager stateManager, CancellationToken cancellationToken)
 		{
 			if (!state.ImplementsGenericType(typeof(IReliableDictionary<,>)))
 				throw new ArgumentException(nameof(state));
@@ -162,6 +210,27 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 
 			return results;
+		}
+
+		private static async Task<IEnumerable<T>> GetServiceProxiesAsync<T>(StatefulServiceContext context) where T : IService
+		{
+			using (var client = new FabricClient())
+			{
+				var partitions = await client.QueryManager.GetPartitionListAsync(context.ServiceName).ConfigureAwait(false);
+				return partitions.Where(p => p.PartitionInformation.Id != context.PartitionId).Select(p => CreateServiceProxy<T>(context.ServiceName, p));
+			}
+		}
+
+		private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
+		{
+			if (partition.PartitionInformation is Int64RangePartitionInformation)
+				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
+			if (partition.PartitionInformation is NamedPartitionInformation)
+				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
+			if (partition.PartitionInformation is SingletonPartitionInformation)
+				return ServiceProxy.Create<T>(serviceUri);
+
+			throw new ArgumentException(nameof(partition));
 		}
 
 		/// <summary>
