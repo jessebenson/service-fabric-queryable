@@ -13,7 +13,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		public SelectExpandQueryOption Select { get; set; }
 		public TopQueryOption Top { get; set; }
 
-		public ODataQueryOptions(IEnumerable<KeyValuePair<string, string>> queryParameters, ODataQueryContext context)
+		public ODataQueryOptions(IEnumerable<KeyValuePair<string, string>> queryParameters, ODataQueryContext context, bool aggregate)
 		{
 			if (queryParameters == null)
 				throw new ArgumentNullException(nameof(queryParameters));
@@ -23,13 +23,19 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				switch (queryParameter.Key)
 				{
 					case "$filter":
-						Filter = new FilterQueryOption(queryParameter.Value, context);
+						if (!aggregate)
+						{
+							Filter = new FilterQueryOption(queryParameter.Value, context);
+						}
 						break;
 					case "$orderby":
 						OrderBy = new OrderByQueryOption(queryParameter.Value, context);
 						break;
 					case "$select":
-						Select = new SelectExpandQueryOption(queryParameter.Value, "", context);
+						if (aggregate)
+						{
+							Select = new SelectExpandQueryOption(queryParameter.Value, string.Empty, context);
+						}
 						break;
 					case "$top":
 						Top = new TopQueryOption(queryParameter.Value, context);

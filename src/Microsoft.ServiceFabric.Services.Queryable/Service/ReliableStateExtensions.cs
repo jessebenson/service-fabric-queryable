@@ -68,13 +68,14 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var queryResults = await Task.WhenAll(queries).ConfigureAwait(false);
 			var results = queryResults.SelectMany(r => r);
 
-			// Filter the data again, if we have to aggregate multiple results (e.g. for top, orderby).
-			if (query.Any() && proxies.Any())
+			// Run the aggregation query to get the final results (e.g. for top, orderby, project).
+			if (query.Any())
 			{
 				var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
 				var valueType = reliableState.GetValueType();
 				var objects = results.Select(r => JsonConvert.DeserializeObject(r, valueType));
-				results = ApplyQuery(objects, valueType, query).Select(JsonConvert.SerializeObject);
+				var queryResult = ApplyQuery(objects, valueType, query, aggregate: true);
+				results = queryResult.Select(JsonConvert.SerializeObject);
 			}
 
 			// Return the filtered data as json.
@@ -101,7 +102,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			if (query.Any())
 			{
 				var valueType = reliableState.GetValueType();
-				results = ApplyQuery(results, valueType, query);
+				results = ApplyQuery(results, valueType, query, aggregate: false);
 			}
 
 			// Return the filtered data as json.
@@ -239,8 +240,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="data">The in-memory objects to query.</param>
 		/// <param name="type">The Type of the objects in <paramref name="data"/>.</param>
 		/// <param name="query">OData query parameters.</param>
+		/// <param name="aggregate">Indicates whether this is an aggregation or partial query.</param>
 		/// <returns>The results of applying the query to the in-memory objects.</returns>
-		private static IEnumerable<object> ApplyQuery(IEnumerable<object> data, Type type, IEnumerable<KeyValuePair<string, string>> query)
+		private static IEnumerable<object> ApplyQuery(IEnumerable<object> data, Type type, IEnumerable<KeyValuePair<string, string>> query, bool aggregate)
 		{
 			// Get the OData query context for this type.
 			var context = QueryCache.GetQueryContext(type);
@@ -249,7 +251,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var casted = data.CastEnumerable(type);
 
 			// Execute the query.
-			var options = new ODataQueryOptions(query, context);
+			var options = new ODataQueryOptions(query, context, aggregate);
 			var settings = new ODataQuerySettings { HandleNullPropagation = HandleNullPropagationOption.True };
 			var result = options.ApplyTo(casted.AsQueryable(), settings);
 
