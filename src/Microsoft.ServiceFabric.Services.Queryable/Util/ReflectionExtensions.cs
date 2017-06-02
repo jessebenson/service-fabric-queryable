@@ -20,7 +20,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <returns>True if the type of instance implements the given generic interface type.</returns>
 		public static bool ImplementsGenericType(this object instance, Type genericType)
 		{
-			if (!genericType.IsGenericType || !genericType.IsInterface)
+			if (!genericType.IsGenericType || !genericType.IsInterface || genericType.GenericTypeArguments?.Length > 0)
 				throw new ArgumentException(nameof(genericType));
 
 			return instance.GetType().GetInterfaces().Where(i => i.IsGenericType).Any(i => i.GetGenericTypeDefinition() == genericType);
