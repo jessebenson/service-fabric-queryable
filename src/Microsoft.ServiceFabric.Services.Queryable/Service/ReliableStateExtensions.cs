@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Query;
 
+
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	internal static class ReliableStateExtensions
@@ -109,13 +110,52 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return results.Select(JsonConvert.SerializeObject);
 		}
 
-		/// <summary>
-		/// Get the queryable reliable collection by name.
-		/// </summary>
-		/// <param name="stateManager">Reliable state manager for the replica.</param>
-		/// <param name="collection">Name of the reliable collection.</param>
-		/// <returns>The reliable collection that supports querying.</returns>
-		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
+        public static async Task<bool> DeleteAsync(this IReliableStateManager stateManager,string collection, string key)
+        {
+
+           // IReliableDictionary<string, string> dictionary =
+             //   await this.stateManager.GetOrAddAsync<IReliableDictionary<string, string>>(ValuesDictionaryName);
+            var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+            //var products = await stateManager.GetProductsStateAsync();
+            try
+            {
+                using (ITransaction tx = stateManager.CreateTransaction())
+                {
+                    ConditionalValue<string> result = dictionary.CallMethod<ConditionalValue<string>>("TryRemoveAsync", new Type[] { typeof(ITransaction), typeof(string) }, new object [] { tx, key });
+                   
+                    
+          
+                    //CallMethod<ConditionalValue<TValue>>(this object instance, string methodName, Type[] parameterTypes, params object[] parameters)
+                    await tx.CommitAsync();
+
+                    if (result.HasValue)
+                    {
+                        return true;
+                    }
+
+                    return false;
+
+                   // return new ContentResult { StatusCode = 400, Content = $"A value with name {name} doesn't exist." };
+                }
+            }
+           catch (FabricNotPrimaryException)
+            {
+                return false;
+               // return new ContentResult { StatusCode = 503, Content = "The primary replica has moved. Please re-resolve the service." };
+            }
+        }
+    
+    
+    
+
+
+    /// <summary>
+    /// Get the queryable reliable collection by name.
+    /// </summary>
+    /// <param name="stateManager">Reliable state manager for the replica.</param>
+    /// <param name="collection">Name of the reliable collection.</param>
+    /// <returns>The reliable collection that supports querying.</returns>
+    private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
 		{
 			// Find the reliable state.
 			var reliableStateResult = await stateManager.TryGetAsync<IReliableState>(collection).ConfigureAwait(false);
@@ -201,8 +241,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var asyncEnumerable = createEnumerableAsyncTask.GetPropertyValue<object>("Result");
 				var asyncEnumerator = asyncEnumerable.CallMethod<object>("GetAsyncEnumerator");
 
-				// Copy all items from the reliable dictionary into memory.
-				while (await asyncEnumerator.CallMethod<Task<bool>>("MoveNextAsync", cancellationToken).ConfigureAwait(false))
+                // Copy all items from the reliable dictionary into memory.
+                // TODO: cache the method/property objects and invoke with new parameters
+                while (await asyncEnumerator.CallMethod<Task<bool>>("MoveNextAsync", cancellationToken).ConfigureAwait(false))
 				{
 					var current = asyncEnumerator.GetPropertyValue<object>("Current");
 					var value = current.GetPropertyValue<object>("Value");

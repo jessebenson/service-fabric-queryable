@@ -31,5 +31,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 			return StateManager.QueryPartitionAsync(collection, query, CancellationToken.None);
 		}
-	}
+
+
+        Task<bool> IQueryableService.DeleteAsync(string collection, string key )
+        {
+            return StateManager.DeleteAsync(collection,key);
+        }
+
+    }
 }

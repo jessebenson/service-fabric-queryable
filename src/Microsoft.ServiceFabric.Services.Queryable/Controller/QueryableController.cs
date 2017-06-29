@@ -47,7 +47,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 			var serviceUri = GetServiceUri(application, service);
 
-			try
+			try 
 			{
 				var query = Request.GetQueryNameValuePairs();
 

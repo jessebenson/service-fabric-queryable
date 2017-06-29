@@ -14,7 +14,7 @@ namespace Basic.ProductSvc
 {
 	/// <summary>
 	/// An instance of this class is created for each service replica by the Service Fabric runtime.
-	/// </summary>
+	/// </summary>B
 	internal sealed class ProductSvc : QueryableService, IProductService
 	{
 		public ProductSvc(StatefulServiceContext context)

@@ -17,7 +17,7 @@ namespace Basic.WebSvc.Controllers
 		[Route("query/{application}/{service}/$metadata")]
 		public Task<IHttpActionResult> GetMetadata(string application, string service)
 		{
-			return base.GetMetadataAsync(application, service);
+		    return GetMetadataAsync(application, service);
 		}
 
 		/// <summary>
@@ -39,5 +39,18 @@ namespace Basic.WebSvc.Controllers
 		{
 			return base.QueryAsync(application, service, collection);
 		}
-	}
+
+        //[HttpPut]
+        //[Route("query/{application}/{service}/{collection}")]
+
+        // PUT api/values/5
+        [HttpDelete]
+        [Route("query/{application}/{service}/{collection}/{key}")]
+        public Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, string key)
+        {
+            return base.DeleteAsync(application, service, collection,key);
+        }
+
+
+    }
 }
