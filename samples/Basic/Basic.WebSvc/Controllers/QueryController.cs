@@ -1,6 +1,8 @@
 ﻿using Microsoft.ServiceFabric.Services.Queryable;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Microsoft.ServiceFabric.Services.Queryable.Controller;
+using Newtonsoft.Json.Linq;
 
 namespace Basic.WebSvc.Controllers
 {
@@ -45,11 +47,13 @@ namespace Basic.WebSvc.Controllers
 
         // PUT api/values/5
         [HttpDelete]
-        [Route("query/{application}/{service}/{collection}/{key}")]
-        public Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, string key)
+        [Route("query/{application}/{service}/{collection}")]
+        public Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, [FromBody] ValueViewModel obj)
         {
-            return base.DeleteAsync(application, service, collection,key);
+            return base.DeleteAsync(application, service, collection, obj);
         }
+
+        
 
 
     }

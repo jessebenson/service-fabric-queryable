@@ -9,7 +9,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Controller
 {
     public class ValueViewModel
     {
-        public JObject Key { get; set; }
-        public JObject Value { get; set; }
+        public Guid PartitionId { get; set; }
+        public JToken Key { get; set; }
+        public JToken Value { get; set; }
    }
 }
