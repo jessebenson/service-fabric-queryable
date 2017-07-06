@@ -54,5 +54,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var property = instance.GetType().GetProperty(propertyName);
 			return (TReturn)property?.GetValue(instance);
 		}
+
+		public static void SetPropertyValue(this object instance, string propertyName, object value)
+		{
+			var property = instance.GetType().GetProperty(propertyName);
+			property?.SetValue(instance, value);
+		}
 	}
 }
