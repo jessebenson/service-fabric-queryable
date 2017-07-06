@@ -51,7 +51,7 @@ namespace Basic.ProductSvc
 			{
 				using (var tx = StateManager.CreateTransaction())
 				{
-					var key = $"sku-{partitionIndex}-{i}";
+					var key = $"sku-{i}";
 					var value = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };
 
 					await products.SetAsync(tx, key, value, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
