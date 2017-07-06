@@ -16,6 +16,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 		private static ODataQueryContext CreateQueryContext(Type type)
 		{
+
+            //here we build schema 
 			var builder = new ODataConventionModelBuilder();
 			builder.AddEntity(type);
 			var model = builder.GetEdmModel();

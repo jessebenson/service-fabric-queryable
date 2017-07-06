@@ -1,6 +1,8 @@
 ﻿using Microsoft.ServiceFabric.Services.Queryable;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Microsoft.ServiceFabric.Services.Queryable.Controller;
+using Newtonsoft.Json.Linq;
 
 namespace Basic.WebSvc.Controllers
 {
@@ -17,7 +19,7 @@ namespace Basic.WebSvc.Controllers
 		[Route("query/{application}/{service}/$metadata")]
 		public Task<IHttpActionResult> GetMetadata(string application, string service)
 		{
-			return base.GetMetadataAsync(application, service);
+		    return GetMetadataAsync(application, service);
 		}
 
 		/// <summary>
@@ -39,5 +41,20 @@ namespace Basic.WebSvc.Controllers
 		{
 			return base.QueryAsync(application, service, collection);
 		}
-	}
+
+        //[HttpPut]
+        //[Route("query/{application}/{service}/{collection}")]
+
+        // PUT api/values/5
+        [HttpDelete]
+        [Route("query/{application}/{service}/{collection}")]
+        public Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, [FromBody] ValueViewModel obj)
+        {
+            return base.DeleteAsync(application, service, collection, obj);
+        }
+
+        
+
+
+    }
 }

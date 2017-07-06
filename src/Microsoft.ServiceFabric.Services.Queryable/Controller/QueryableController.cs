@@ -15,6 +15,9 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Results;
 using System.Xml;
+using Microsoft.ServiceFabric.Services.Queryable.Controller;
+
+
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -47,7 +50,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 			var serviceUri = GetServiceUri(application, service);
 
-			try
+			try 
 			{
 				var query = Request.GetQueryNameValuePairs();
 
@@ -70,7 +73,51 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private IHttpActionResult HandleException(Exception e, Uri serviceUri)
+	   /* class MyClass
+	    {
+	        public string Key { get; set; }
+            public string PartitionId { get; set; }
+            public JObject Value { get; set; }
+	    }
+
+	    {
+	        "Key": "string",
+            "ParitionId": "0202-234234-234223",
+	    }
+        */
+	    protected async Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, ValueViewModel Obj)
+	    {
+	        var serviceUri = GetServiceUri(application, service);
+	        try
+	        {
+                /* string jsonString = "{name:\"me\",lastname:\"mylastname\"}";
+                 var typeExample = new { name = "", lastname = "", data = new int[] { 1, 2, 3 } };
+                 var result = JsonConvert.DeserializeAnonymousType(jsonString, typeExample);
+                 int data1 = result.data.Where(x => 1);
+                 Movie m = JsonConvert.DeserializeObject<Movie>(obj);
+
+                 string name = m.Name;
+
+                 */
+                // Query one service partition, allowing the partition to do the distributed query.
+	            //string quoted = HttpUtility.JavaScriptStringEncode(Obj.Key.ToString());
+
+	            string quoted= JsonConvert.SerializeObject(Obj.Key, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+
+                var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, Obj.PartitionId).ConfigureAwait(false);
+	            var results = await proxy.DeleteAsync(collection, quoted).ConfigureAwait(false);
+
+	            // Construct the final, aggregated result.
+	            
+	            return Ok(results);
+	        }
+	        catch (Exception e)
+	        {
+	            return HandleException(e, serviceUri);
+	        }
+        }
+
+	    private IHttpActionResult HandleException(Exception e, Uri serviceUri)
 		{
 			if (e is FabricServiceNotFoundException)
 				return Content(HttpStatusCode.NotFound, new { Message = $"Service '{serviceUri}' not found." });
@@ -95,7 +142,17 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
+	    private static async Task<T> GetServiceProxyForPartitionAsync<T>(Uri serviceUri, Guid partitionId) where T : IService
+	    {
+	        using (var client = new FabricClient())
+	        {
+	            var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
+                return CreateServiceProxy<T>(serviceUri, partitions.First(p => p.PartitionInformation.Id == partitionId));
+
+            }
+	    }
+
+        private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
 		{
 			if (partition.PartitionInformation is Int64RangePartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));

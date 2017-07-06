@@ -17,6 +17,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Query;
+using Newtonsoft.Json.Linq;
+
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -64,16 +66,28 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 			// Query all service partitions concurrently.
 			var proxies = await GetServiceProxiesAsync<IQueryableService>(context).ConfigureAwait(false);
-			var queries = proxies.Select(p => p.QueryPartitionAsync(collection, query)).Concat(new[] { stateManager.QueryPartitionAsync(collection, query, cancellationToken) });
+			var queries = proxies.Select(p => p.QueryPartitionAsync(collection, query)).Concat(new[] { stateManager.QueryPartitionAsync(collection, query, context.PartitionId, cancellationToken) });
 			var queryResults = await Task.WhenAll(queries).ConfigureAwait(false);
 			var results = queryResults.SelectMany(r => r);
+            
 
 			// Run the aggregation query to get the final results (e.g. for top, orderby, project).
 			if (query.Any())
 			{
 				var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
 				var valueType = reliableState.GetValueType();
-				var objects = results.Select(r => JsonConvert.DeserializeObject(r, valueType));
+               // var temp= results.Select(x=>JsonConvert.DeserializeObject(x,))
+
+
+			    //var output = results.Select(r => new Tuple<Guid, object>(partitionId, r));
+
+               // JsonConvert.DeserializeObject<Guid, object>(results.Select(r => r));
+
+
+
+
+
+                var objects = results.Select(r => JsonConvert.DeserializeObject(r, valueType));
 				var queryResult = ApplyQuery(objects, valueType, query, aggregate: true);
 				results = queryResult.Select(JsonConvert.SerializeObject);
 			}
@@ -81,16 +95,17 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			// Return the filtered data as json.
 			return results;
 		}
-		
-		/// <summary>
-		/// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
-		/// </summary>
-		/// <param name="stateManager">Reliable state manager for the replica.</param>
-		/// <param name="collection">Name of the reliable collection.</param>
-		/// <param name="query">OData query parameters.</param>
+
+        /// <summary>
+        /// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
+        /// </summary>
+        /// <param name="stateManager">Reliable state manager for the replica.</param>
+        /// <param name="collection">Name of the reliable collection.</param>
+        /// <param name="query">OData query parameters.</param>
+        /// <param name="partitionId">Partition id.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
-		/// <returns>The json serialized results of the query.</returns>
-		public static async Task<IEnumerable<string>> QueryPartitionAsync(this IReliableStateManager stateManager, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
+        /// <returns>The json serialized results of the query.</returns>
+        public static async Task<IEnumerable<string>> QueryPartitionAsync(this IReliableStateManager stateManager, string collection, IEnumerable<KeyValuePair<string, string>> query, Guid partitionId, CancellationToken cancellationToken)
 		{
 			// Find the reliable state.
 			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
@@ -105,17 +120,63 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				results = ApplyQuery(results, valueType, query, aggregate: false);
 			}
 
-			// Return the filtered data as json.
-			return results.Select(JsonConvert.SerializeObject);
+		    var output = results.Select(r => new Tuple<Guid, object>(partitionId, r));
+		  
+            // Return the filtered data as json.
+            return output.Select(JsonConvert.SerializeObject);
 		}
 
-		/// <summary>
-		/// Get the queryable reliable collection by name.
-		/// </summary>
-		/// <param name="stateManager">Reliable state manager for the replica.</param>
-		/// <param name="collection">Name of the reliable collection.</param>
-		/// <returns>The reliable collection that supports querying.</returns>
-		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
+        public static async Task<bool> DeleteAsync(this IReliableStateManager stateManager,string collection, string keyJson)
+        {
+
+           // IReliableDictionary<string, string> dictionary =
+             //   await this.stateManager.GetOrAddAsync<IReliableDictionary<string, string>>(ValuesDictionaryName);
+            var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+            //var products = await stateManager.GetProductsStateAsync();
+            try
+            {
+                using (ITransaction tx = stateManager.CreateTransaction())
+                {
+                    var keyType = dictionary.GetKeyType();
+                    var valueType = dictionary.GetValueType();
+
+                    var key = JsonConvert.DeserializeObject(keyJson, keyType);
+
+                    var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+                    await (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new object[] { tx, key });
+                    //await dictionary.CallMethod<Task>("TryRemoveAsync", new [] { typeof(ITransaction), keyType }, new object [] { tx, key });
+          
+                    //CallMethod<ConditionalValue<TValue>>(this object instance, string methodName, Type[] parameterTypes, params object[] parameters)
+                    await tx.CommitAsync();
+
+                    //if (result.HasValue)
+                    {
+                        return true;
+                    }
+
+                    return false;
+
+                   // return new ContentResult { StatusCode = 400, Content = $"A value with name {name} doesn't exist." };
+                }
+            }
+           catch (FabricNotPrimaryException)
+            {
+                return false;
+               // return new ContentResult { StatusCode = 503, Content = "The primary replica has moved. Please re-resolve the service." };
+            }
+        }
+    
+    
+    
+
+
+    /// <summary>
+    /// Get the queryable reliable collection by name.
+    /// </summary>
+    /// <param name="stateManager">Reliable state manager for the replica.</param>
+    /// <param name="collection">Name of the reliable collection.</param>
+    /// <returns>The reliable collection that supports querying.</returns>
+    private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
 		{
 			// Find the reliable state.
 			var reliableStateResult = await stateManager.TryGetAsync<IReliableState>(collection).ConfigureAwait(false);
@@ -201,8 +262,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var asyncEnumerable = createEnumerableAsyncTask.GetPropertyValue<object>("Result");
 				var asyncEnumerator = asyncEnumerable.CallMethod<object>("GetAsyncEnumerator");
 
-				// Copy all items from the reliable dictionary into memory.
-				while (await asyncEnumerator.CallMethod<Task<bool>>("MoveNextAsync", cancellationToken).ConfigureAwait(false))
+                // Copy all items from the reliable dictionary into memory.
+                // TODO: cache the method/property objects and invoke with new parameters
+                while (await asyncEnumerator.CallMethod<Task<bool>>("MoveNextAsync", cancellationToken).ConfigureAwait(false))
 				{
 					var current = asyncEnumerator.GetPropertyValue<object>("Current");
 					var value = current.GetPropertyValue<object>("Value");

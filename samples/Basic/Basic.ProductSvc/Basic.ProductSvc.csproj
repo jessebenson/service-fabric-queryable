@@ -65,9 +65,6 @@
     <Reference Include="Microsoft.ServiceFabric.Services, Version=5.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64">
       <HintPath>..\packages\Microsoft.ServiceFabric.Services.2.6.210\lib\net45\Microsoft.ServiceFabric.Services.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.ServiceFabric.Services.Queryable, Version=1.0.5.0, Culture=neutral, processorArchitecture=AMD64">
-      <HintPath>..\packages\Microsoft.ServiceFabric.Services.Queryable.1.0.5\lib\net461\Microsoft.ServiceFabric.Services.Queryable.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.ServiceFabric.Services.Remoting, Version=5.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64">
       <HintPath>..\packages\Microsoft.ServiceFabric.Services.Remoting.2.6.210\lib\net45\Microsoft.ServiceFabric.Services.Remoting.dll</HintPath>
     </Reference>
@@ -118,6 +115,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Microsoft.ServiceFabric.Services.Queryable\Microsoft.ServiceFabric.Services.Queryable.csproj">
+      <Project>{4b9d2c27-562e-48a5-bad1-b66e67413943}</Project>
+      <Name>Microsoft.ServiceFabric.Services.Queryable</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Basic.Common\Basic.Common.csproj">
       <Project>{a4fb1fee-756f-4071-9f91-714807d75d16}</Project>
       <Name>Basic.Common</Name>

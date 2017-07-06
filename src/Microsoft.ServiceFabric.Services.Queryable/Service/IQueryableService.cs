@@ -1,6 +1,7 @@
 ﻿using Microsoft.ServiceFabric.Services.Remoting;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -35,5 +36,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="query">OData query options.</param>
 		/// <returns>The json serialized results from the query.</returns>
 		Task<IEnumerable<string>> QueryPartitionAsync(string collection, IEnumerable<KeyValuePair<string, string>> query);
-	}
+
+        Task<bool> DeleteAsync(string collection, string key);
+
+    }
 }
