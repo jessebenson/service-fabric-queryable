@@ -52,5 +52,13 @@ namespace Basic.WebSvc.Controllers
 		{
 			return base.DeleteAsync(application, service, collection, obj);
 		}
-	}
+
+	    [HttpPost]
+        [Route("query/{application}/{service}/{collection}")]
+	    public Task<IHttpActionResult> AddAsync(string application, string service, string collection, [FromBody] ValueViewModel obj)
+	    {
+	        return base.AddAsync(application, service, collection, obj);
+	    }
+
+    }
 }

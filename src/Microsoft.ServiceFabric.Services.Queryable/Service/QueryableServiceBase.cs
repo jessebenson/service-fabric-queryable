@@ -37,6 +37,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
             return StateManager.DeleteAsync(collection, key);
         }
 
+	    Task<bool> IQueryableService.AddAsync(string collection, string key, string val)
+	    {
+	        return StateManager.AddAsync(collection, key, val);
+	    }
 
 
     }

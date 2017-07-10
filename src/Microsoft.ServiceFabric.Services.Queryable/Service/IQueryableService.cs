@@ -38,6 +38,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		Task<IEnumerable<string>> QueryPartitionAsync(string collection, IEnumerable<KeyValuePair<string, string>> query);
 
         Task<bool> DeleteAsync(string collection, string key);
+	    Task<bool> AddAsync(string collection, string key, string val);
 
-    }
+	}
 }

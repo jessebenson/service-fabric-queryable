@@ -117,7 +117,34 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private IHttpActionResult HandleException(Exception e, Uri serviceUri)
+
+	    protected async Task<IHttpActionResult> AddAsync(string application, string service, string collection,
+	        ValueViewModel Obj)
+	    {
+	        var serviceUri = GetServiceUri(application, service);
+	        try
+	        {
+	            string keyquoted = JsonConvert.SerializeObject(Obj.Key,
+	                new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+	            string valuequoted = JsonConvert.SerializeObject(Obj.Value,
+	                new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+
+	            var proxy = await GetServiceProxyAsync<IQueryableService>(serviceUri).ConfigureAwait(false);
+	            // var results = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, quoted))).ConfigureAwait(false);
+	            var results = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
+	            // Construct the final, aggregated result.
+
+	            return Ok(results);
+	        }
+	        catch (Exception e)
+	        {
+	            return HandleException(e, serviceUri);
+	        }
+
+	    }
+
+
+	    private IHttpActionResult HandleException(Exception e, Uri serviceUri)
 		{
 			if (e is FabricServiceNotFoundException)
 				return Content(HttpStatusCode.NotFound, new { Message = $"Service '{serviceUri}' not found." });
