@@ -39,6 +39,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
         Task<bool> DeleteAsync(string collection, string key);
 	    Task<bool> AddAsync(string collection, string key, string val);
+	    Task<bool> UpdateAsync(string collection, string key, string val);
 
-	}
+    }
 }

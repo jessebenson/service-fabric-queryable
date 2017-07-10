@@ -207,7 +207,44 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 	            // return new ContentResult { StatusCode = 503, Content = "The primary replica has moved. Please re-resolve the service." };
 	        }
 	    }
+	    public static async Task<bool> UpdateAsync(this IReliableStateManager stateManager, string collection, string keyJson, string valJson)
+	    {
+            
+	        var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+	       
+	        try
+	        {
+	            using (ITransaction tx = stateManager.CreateTransaction())
+	            {
+	                var keyType = dictionary.GetKeyType();
+	                var valueType = dictionary.GetValueType();
 
+	                var key = JsonConvert.DeserializeObject(keyJson, keyType);
+	                var val = JsonConvert.DeserializeObject(valJson, valueType);
+
+	                var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+
+                    //Task<bool> TryUpdateAsync(ITransaction tx, TKey key, TValue newValue, TValue comparisonValue);
+                    await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new object[] { tx, key, val });
+
+	                await tx.CommitAsync();
+
+	                //if (result.HasValue)
+	                {
+	                    return true;
+	                }
+
+	                return false;
+
+	                // return new ContentResult { StatusCode = 400, Content = $"A value with name {name} doesn't exist." };
+	            }
+	        }
+	        catch (FabricNotPrimaryException)
+	        {
+	            return false;
+	            // return new ContentResult { StatusCode = 503, Content = "The primary replica has moved. Please re-resolve the service." };
+	        }
+	    }
         /// <summary>
         /// Get the queryable reliable collection by name.
         /// </summary>

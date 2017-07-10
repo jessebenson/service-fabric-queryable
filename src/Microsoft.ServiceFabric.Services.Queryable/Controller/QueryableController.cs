@@ -118,30 +118,52 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		}
 
 
-	    protected async Task<IHttpActionResult> AddAsync(string application, string service, string collection, ValueViewModel Obj)
+	    protected async Task<IHttpActionResult> AddAsync(string application, string service, string collection,
+	        ValueViewModel Obj)
 	    {
 	        var serviceUri = GetServiceUri(application, service);
 	        try
 	        {
-	       
 
-	            string keyquoted = JsonConvert.SerializeObject(Obj.Key, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
-	            string valuequoted= JsonConvert.SerializeObject(Obj.Value, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
 
-                var proxy = await GetServiceProxyForAddAsync<IQueryableService>(serviceUri,Obj.PartitionId).ConfigureAwait(false);
-	           // var results = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, quoted))).ConfigureAwait(false);
+	            string keyquoted = JsonConvert.SerializeObject(Obj.Key,
+	                new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+	            string valuequoted = JsonConvert.SerializeObject(Obj.Value,
+	                new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+
+	            var proxy = await GetServiceProxyForAddAsync<IQueryableService>(serviceUri, Obj.PartitionId)
+	                .ConfigureAwait(false);
+	            // var results = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, quoted))).ConfigureAwait(false);
 	            var results = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
-                // Construct the final, aggregated result.
+	            // Construct the final, aggregated result.
 
+	            return Ok(results);
+	        }
+	        catch (Exception e)
+	        {
+	            return HandleException(e, serviceUri);
+	        }
+
+	    }
+
+	    protected async Task<IHttpActionResult> UpdateAsync(string application, string service, string collection, ValueViewModel Obj)
+	    {
+	        var serviceUri = GetServiceUri(application, service);
+	        try
+	        {
+	            string keyquoted = JsonConvert.SerializeObject(Obj.Key, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+	            string valuequoted = JsonConvert.SerializeObject(Obj.Value, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+
+	            var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, Obj.PartitionId).ConfigureAwait(false);
+	            var results = await Task.WhenAll(proxy.Select(p => p.UpdateAsync(collection, keyquoted, valuequoted))).ConfigureAwait(false);
                 return Ok(results);
 	        }
 	        catch (Exception e)
 	        {
 	            return HandleException(e, serviceUri);
 	        }
-	    
-            }
 
+	    }
 
         private IHttpActionResult HandleException(Exception e, Uri serviceUri)
 		{

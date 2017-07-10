@@ -59,6 +59,11 @@ namespace Basic.WebSvc.Controllers
 	    {
 	        return base.AddAsync(application, service, collection, obj);
 	    }
-
+	    [HttpPut]
+	    [Route("query/{application}/{service}/{collection}")]
+	    public Task<IHttpActionResult> UpdateAsync(string application, string service, string collection, [FromBody] ValueViewModel obj)
+	    {
+	        return base.UpdateAsync(application, service, collection, obj);
+	    }
     }
 }
