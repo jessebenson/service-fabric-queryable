@@ -56,6 +56,7 @@ namespace Basic.ProductSvc
 
 					await products.SetAsync(tx, key, value, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
 					await tx.CommitAsync().ConfigureAwait(false);
+                    //await products.TryAddAsync()
 				}
 			}
 		}

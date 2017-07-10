@@ -185,7 +185,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 	                var val = JsonConvert.DeserializeObject(valJson, valueType);
 
 	                var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-	                await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType}).Invoke(dictionary, new object[] { tx, key, val });
+	                await (Task)dictionaryType.GetMethod("TryAddAsync", new[] { typeof(ITransaction), keyType, valueType}).Invoke(dictionary, new object[] { tx, key, val });
 	                //await dictionary.CallMethod<Task>("TryRemoveAsync", new [] { typeof(ITransaction), keyType }, new object [] { tx, key });
 
 	                //CallMethod<ConditionalValue<TValue>>(this object instance, string methodName, Type[] parameterTypes, params object[] parameters)

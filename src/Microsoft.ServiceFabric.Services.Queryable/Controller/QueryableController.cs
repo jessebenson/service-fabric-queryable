@@ -118,33 +118,32 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		}
 
 
-	    protected async Task<IHttpActionResult> AddAsync(string application, string service, string collection,
-	        ValueViewModel Obj)
+	    protected async Task<IHttpActionResult> AddAsync(string application, string service, string collection, ValueViewModel Obj)
 	    {
 	        var serviceUri = GetServiceUri(application, service);
 	        try
 	        {
-	            string keyquoted = JsonConvert.SerializeObject(Obj.Key,
-	                new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-	            string valuequoted = JsonConvert.SerializeObject(Obj.Value,
-	                new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+	       
 
-	            var proxy = await GetServiceProxyAsync<IQueryableService>(serviceUri).ConfigureAwait(false);
-	            // var results = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, quoted))).ConfigureAwait(false);
+	            string keyquoted = JsonConvert.SerializeObject(Obj.Key, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+	            string valuequoted= JsonConvert.SerializeObject(Obj.Value, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+
+                var proxy = await GetServiceProxyForAddAsync<IQueryableService>(serviceUri,Obj.PartitionId).ConfigureAwait(false);
+	           // var results = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, quoted))).ConfigureAwait(false);
 	            var results = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
-	            // Construct the final, aggregated result.
+                // Construct the final, aggregated result.
 
-	            return Ok(results);
+                return Ok(results);
 	        }
 	        catch (Exception e)
 	        {
 	            return HandleException(e, serviceUri);
 	        }
+	    
+            }
 
-	    }
 
-
-	    private IHttpActionResult HandleException(Exception e, Uri serviceUri)
+        private IHttpActionResult HandleException(Exception e, Uri serviceUri)
 		{
 			if (e is FabricServiceNotFoundException)
 				return Content(HttpStatusCode.NotFound, new { Message = $"Service '{serviceUri}' not found." });
@@ -179,7 +178,22 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
+	    private static async Task<T> GetServiceProxyForAddAsync<T>(Uri serviceUri, Guid partitionId) where T : IService
+	    {
+	        using (var client = new FabricClient())
+	        {
+	            var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
+	            var matchingPartitions = partitions.Where(p => p.PartitionInformation.Id == partitionId);
+	            if (partitionId == Guid.Empty)
+	            {
+	                return CreateServiceProxy<T>(serviceUri, partitions.First());
+	            }
+	            return CreateServiceProxy<T>(serviceUri, matchingPartitions.First());
+
+	        }
+	    }
+
+        private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
 		{
 			if (partition.PartitionInformation is Int64RangePartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
