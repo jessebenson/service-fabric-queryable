@@ -12,6 +12,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 using System.Web.Http.Results;
 using System.Xml;
@@ -133,9 +134,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 	            var proxy = await GetServiceProxyForAddAsync<IQueryableService>(serviceUri, Obj.PartitionId)
 	                .ConfigureAwait(false);
-	            // var results = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, quoted))).ConfigureAwait(false);
+	            
 	            var results = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
-	            // Construct the final, aggregated result.
+	            
 
 	            return Ok(results);
 	        }
@@ -174,11 +175,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				return BadRequest(e.Message);
 			if (e.InnerException is ArgumentException)
 				return BadRequest(e.InnerException.Message);
+		    if (e is HttpException)
+		        return Content((HttpStatusCode)((HttpException)e).GetHttpCode(), ((HttpException)e).Message);
+		    if (e.InnerException is HttpException)
+		        return Content((HttpStatusCode)((HttpException)e.InnerException).GetHttpCode(), ((HttpException)e.InnerException).Message);
 
-			if (e is AggregateException)
+            if (e is AggregateException)
 				return InternalServerError(e.InnerException ?? e);
-
-			return InternalServerError(e);
+		    
+            return InternalServerError(e);
 		}
 
 		private static async Task<T> GetServiceProxyAsync<T>(Uri serviceUri) where T : IService
