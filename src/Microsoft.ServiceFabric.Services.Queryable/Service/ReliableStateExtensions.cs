@@ -19,9 +19,7 @@ using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Query;
-//using Microsoft.AspNetCore.Mvc;
-//using global::StatefulBackendService.ViewModels;
-//using Microsoft.AspNetCore.Mvc;
+
 
 
 
@@ -129,84 +127,84 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return results.Select(JsonConvert.SerializeObject);
 		}
 
-		public static async Task<bool> DeleteAsync(this IReliableStateManager stateManager, string collection, string keyJson)
-		{
-
-			// IReliableDictionary<string, string> dictionary =
-			//   await this.stateManager.GetOrAddAsync<IReliableDictionary<string, string>>(ValuesDictionaryName);
-			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-			//var products = await stateManager.GetProductsStateAsync();
-			try
-			{
-				using (ITransaction tx = stateManager.CreateTransaction())
-				{
-					var keyType = dictionary.GetKeyType();
-					var valueType = dictionary.GetValueType();
-				    
-
-					var key = JsonConvert.DeserializeObject(keyJson, keyType);
-
-					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-					await (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new object[] { tx, key });
-					//await dictionary.CallMethod<Task>("TryRemoveAsync", new [] { typeof(ITransaction), keyType }, new object [] { tx, key });
-
-					//CallMethod<ConditionalValue<TValue>>(this object instance, string methodName, Type[] parameterTypes, params object[] parameters)
-					await tx.CommitAsync();
-
-					//if (result.HasValue)
-					{
-						return true;
-					}
-
-					return false;
-
-					// return new ContentResult { StatusCode = 400, Content = $"A value with name {name} doesn't exist." };
-				}
-			}
-			catch (FabricNotPrimaryException)
-			{
-				return false;
-				// return new ContentResult { StatusCode = 503, Content = "The primary replica has moved. Please re-resolve the service." };
-			}
-		}
-
-
-	    public static async Task<bool> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson, string valJson)
+	    public static async Task<bool> DeleteAsync(this IReliableStateManager stateManager, string collection,
+	        string keyJson)
 	    {
 
 	        var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-	        
+
 	        try
 	        {
 	            using (ITransaction tx = stateManager.CreateTransaction())
 	            {
 	                var keyType = dictionary.GetKeyType();
 	                var valueType = dictionary.GetValueType();
+
+
 	                var key = JsonConvert.DeserializeObject(keyJson, keyType);
-	                var val = JsonConvert.DeserializeObject(valJson, valueType);
+
 
 	                var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-	                await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType}).Invoke(dictionary, new object[] { tx, key, val });
-	                
+	                await (Task) dictionaryType.GetMethod("TryRemoveAsync", new[] {typeof(ITransaction), keyType})
+	                    .Invoke(dictionary, new object[] {tx, key});
+
 	                await tx.CommitAsync();
-                    
+
+
 	            }
 	        }
 	        catch (ArgumentException)
 	        {
 
-                throw new HttpException(400, "A value with name already exists.");
-	            //return new ContentResult { StatusCode = 400, Content = " };
+	            throw new HttpException(400, $"A value with given key:{keyJson} does not exist.");
+
 	        }
-	      
-            return true;
+
+	        return true;
 
 	    }
-	    public static async Task<bool> UpdateAsync(this IReliableStateManager stateManager, string collection, string keyJson, string valJson)
+
+
+	    public static async Task<bool> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
+	        string valJson)
 	    {
-            
+
 	        var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-	       
+
+	        try
+	        {
+	            using (ITransaction tx = stateManager.CreateTransaction())
+	            {
+	                var keyType = dictionary.GetKeyType();
+	                var valueType = dictionary.GetValueType();
+	                var key = JsonConvert.DeserializeObject(keyJson, keyType);
+	                var val = JsonConvert.DeserializeObject(valJson, valueType);
+
+	                var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+	                await (Task) dictionaryType.GetMethod("AddAsync", new[] {typeof(ITransaction), keyType, valueType})
+	                    .Invoke(dictionary, new object[] {tx, key, val});
+
+	                await tx.CommitAsync();
+
+	            }
+	        }
+	        catch (ArgumentException)
+	        {
+
+	            throw new HttpException(400, "A value with same key already exists.");
+
+	        }
+
+	        return true;
+
+	    }
+
+	    public static async Task<bool> UpdateAsync(this IReliableStateManager stateManager, string collection,
+	        string keyJson, string valJson)
+	    {
+
+	        var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+
 	        try
 	        {
 	            using (ITransaction tx = stateManager.CreateTransaction())
@@ -219,28 +217,25 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 	                var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
 
-                    //Task<bool> TryUpdateAsync(ITransaction tx, TKey key, TValue newValue, TValue comparisonValue);
-                    await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new object[] { tx, key, val });
+	                //Task<bool> TryUpdateAsync(ITransaction tx, TKey key, TValue newValue, TValue comparisonValue);
+	                await (Task) dictionaryType.GetMethod("SetAsync", new[] {typeof(ITransaction), keyType, valueType})
+	                    .Invoke(dictionary, new object[] {tx, key, val});
 
 	                await tx.CommitAsync();
 
-	                //if (result.HasValue)
-	                {
-	                    return true;
-	                }
-
-	                return false;
-
-	                // return new ContentResult { StatusCode = 400, Content = $"A value with name {name} doesn't exist." };
 	            }
 	        }
-	        catch (FabricNotPrimaryException)
+	        catch (ArgumentException)
 	        {
-	            return false;
-	            // return new ContentResult { StatusCode = 503, Content = "The primary replica has moved. Please re-resolve the service." };
+
+	            throw new HttpException(400, "Updating to same value again.");
+
 	        }
+
+	        return true;
 	    }
-        /// <summary>
+
+	    /// <summary>
         /// Get the queryable reliable collection by name.
         /// </summary>
         /// <param name="stateManager">Reliable state manager for the replica.</param>

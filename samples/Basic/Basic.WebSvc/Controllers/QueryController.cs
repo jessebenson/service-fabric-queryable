@@ -55,13 +55,13 @@ namespace Basic.WebSvc.Controllers
 
 	    [HttpPost]
         [Route("query/{application}/{service}/{collection}")]
-	    public Task<IHttpActionResult> AddAsync(string application, string service, string collection, [FromBody] ValueViewModel obj)
+	    public Task<IHttpActionResult> AddAsync(string application, string service, string collection, [FromBody] ValueViewModel[] obj)
 	    {
 	        return base.AddAsync(application, service, collection, obj);
 	    }
 	    [HttpPut]
 	    [Route("query/{application}/{service}/{collection}")]
-	    public Task<IHttpActionResult> UpdateAsync(string application, string service, string collection, [FromBody] ValueViewModel obj)
+	    public Task<IHttpActionResult> UpdateAsync(string application, string service, string collection, [FromBody] ValueViewModel[] obj)
 	    {
 	        return base.UpdateAsync(application, service, collection, obj);
 	    }
