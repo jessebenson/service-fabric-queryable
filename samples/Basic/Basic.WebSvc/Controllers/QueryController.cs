@@ -48,7 +48,7 @@ namespace Basic.WebSvc.Controllers
 		// PUT api/values/5
 		[HttpDelete]
 		[Route("query/{application}/{service}/{collection}")]
-		public Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, [FromBody] ValueViewModel obj)
+		public Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, [FromBody] ValueViewModel[] obj)
 		{
 			return base.DeleteAsync(application, service, collection, obj);
 		}

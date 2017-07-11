@@ -86,12 +86,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			 "ParitionId": "0202-234234-234223",
 		 }
 		 */
-		protected async Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, ValueViewModel Obj)
+		protected async Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, ValueViewModel[] obj)
 		{
 			var serviceUri = GetServiceUri(application, service);
 			try
 			{
-				/* string jsonString = "{name:\"me\",lastname:\"mylastname\"}";
+                /* string jsonString = "{name:\"me\",lastname:\"mylastname\"}";
                  var typeExample = new { name = "", lastname = "", data = new int[] { 1, 2, 3 } };
                  var result = JsonConvert.DeserializeAnonymousType(jsonString, typeExample);
                  int data1 = result.data.Where(x => 1);
@@ -100,15 +100,24 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                  string name = m.Name;
 
                  */
-				// Query one service partition, allowing the partition to do the distributed query.
-				//string quoted = HttpUtility.JavaScriptStringEncode(Obj.Key.ToString());
+                // Query one service partition, allowing the partition to do the distributed query.
+                //string quoted = HttpUtility.JavaScriptStringEncode(Obj.Key.ToString());
+			    bool[][] results = new bool[obj.Length][];
+                for (int i = 0; i < obj.Length; i++)
+			    {
 
-				string quoted = JsonConvert.SerializeObject(Obj.Key, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+			        string keyquoted = JsonConvert.SerializeObject(obj[i].Key,
+			            new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
 
-				var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, Obj.PartitionId).ConfigureAwait(false);
-				var results = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, quoted))).ConfigureAwait(false);
+			        var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, obj[i].PartitionId)
+			            .ConfigureAwait(false);
 
-				// Construct the final, aggregated result.
+			       
+                     results[i] =  await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, keyquoted)))
+			            .ConfigureAwait(false);
+                    
+			    }
+			    // Construct the final, aggregated result.
 
 				return Ok(results);
 			}
