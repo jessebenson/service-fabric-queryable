@@ -85,11 +85,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				//var output = results.Select(r => new Tuple<Guid, object>(partitionId, r));
 
 				// JsonConvert.DeserializeObject<Guid, object>(results.Select(r => r));
-
-
-
-
-
+                
 				var objects = results.Select(r => JsonConvert.DeserializeObject(r, entityType));
 				var queryResult = ApplyQuery(objects, entityType, query, aggregate: true);
 				results = queryResult.Select(JsonConvert.SerializeObject);
@@ -127,30 +123,31 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return results.Select(JsonConvert.SerializeObject);
 		}
 
-	    public static async Task<bool> DeleteAsync(this IReliableStateManager stateManager, string collection,
+	    /// <summary>
+	    /// Delete from the reliable collection with the given key from the reliable state manager using the given parameters.
+	    /// </summary>
+	    /// <param name="stateManager">Reliable state manager for the replica.</param>
+	    /// <param name="collection">Name of the reliable collection.</param>
+	    /// <param name="keyJson">Entity Key.</param>
+	    /// <returns>A boolean value based on the success of the operation.</returns>
+        public static async Task<bool> DeleteAsync(this IReliableStateManager stateManager, string collection,
 	        string keyJson)
 	    {
 
 	        var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-
 	        try
 	        {
 	            using (ITransaction tx = stateManager.CreateTransaction())
 	            {
 	                var keyType = dictionary.GetKeyType();
 	                var valueType = dictionary.GetValueType();
-
-
 	                var key = JsonConvert.DeserializeObject(keyJson, keyType);
-
-
 	                var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
 	                await (Task) dictionaryType.GetMethod("TryRemoveAsync", new[] {typeof(ITransaction), keyType})
 	                    .Invoke(dictionary, new object[] {tx, key});
 
 	                await tx.CommitAsync();
-
-
+                
 	            }
 	        }
 	        catch (ArgumentException)
@@ -164,8 +161,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 	    }
 
-
-	    public static async Task<bool> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
+        /// <summary>
+        /// Add to the reliable collection the given key & value using the reliable state managers.
+        /// </summary>
+        /// <param name="stateManager">Reliable state manager for the replica.</param>
+        /// <param name="collection">Name of the reliable collection.</param>
+        /// <param name="keyJson">Entity Key.</param>
+        /// <param name="valJson">Value.</param>
+        /// <returns>A boolean value based on the success of the operation.</returns>
+        public static async Task<bool> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
 	        string valJson)
 	    {
 

@@ -74,51 +74,27 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		/* class MyClass
-		 {
-			 public string Key { get; set; }
-			 public string PartitionId { get; set; }
-			 public JObject Value { get; set; }
-		 }
-
-		 {
-			 "Key": "string",
-			 "ParitionId": "0202-234234-234223",
-		 }
-		 */
 		protected async Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, ValueViewModel[] obj)
 		{
 			var serviceUri = GetServiceUri(application, service);
 			try
 			{
-                /* string jsonString = "{name:\"me\",lastname:\"mylastname\"}";
-                 var typeExample = new { name = "", lastname = "", data = new int[] { 1, 2, 3 } };
-                 var result = JsonConvert.DeserializeAnonymousType(jsonString, typeExample);
-                 int data1 = result.data.Where(x => 1);
-                 Movie m = JsonConvert.DeserializeObject<Movie>(obj);
-
-                 string name = m.Name;
-
-                 */
-                // Query one service partition, allowing the partition to do the distributed query.
-                //string quoted = HttpUtility.JavaScriptStringEncode(Obj.Key.ToString());
+              
 			    bool[][] results = new bool[obj.Length][];
                 for (int i = 0; i < obj.Length; i++)
 			    {
-
+                    //Serialize the key from the json body and put it into a string.
 			        string keyquoted = JsonConvert.SerializeObject(obj[i].Key,
 			            new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-
+                    
+                    //Fetch partition proxy.
 			        var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, obj[i].PartitionId)
 			            .ConfigureAwait(false);
-
-			       
+                    //Perform delete opration.
                      results[i] =  await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, keyquoted)))
 			            .ConfigureAwait(false);
                     
 			    }
-			    // Construct the final, aggregated result.
-
 				return Ok(results);
 			}
 			catch (Exception e)
@@ -137,15 +113,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 	            bool[] results = new bool[Obj.Length];
 	            for (int i = 0; i < Obj.Length; i++)
 	            {
-
-	                string keyquoted = JsonConvert.SerializeObject(Obj[i].Key,
+	                //Serialize the key from the json body and put it into a string.
+                    string keyquoted = JsonConvert.SerializeObject(Obj[i].Key,
 	                    new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-	                string valuequoted = JsonConvert.SerializeObject(Obj[i].Value,
+	                //Serialize the value from the json body and put it into a string.
+                    string valuequoted = JsonConvert.SerializeObject(Obj[i].Value,
 	                    new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-
+                    //Fetch the proxy
 	                var proxy = await GetServiceProxyForAddAsync<IQueryableService>(serviceUri, Obj[i].PartitionId)
 	                    .ConfigureAwait(false);
-
+                    
 	                results[i] = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
 
 	            }
@@ -167,9 +144,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 	            bool[][] results = new bool[Obj.Length][];
 	            for (int i = 0; i < Obj.Length; i++)
 	            {
-	                string keyquoted = JsonConvert.SerializeObject(Obj[i].Key,
+	                //Serialize the key from the json body and put it into a string.
+                    string keyquoted = JsonConvert.SerializeObject(Obj[i].Key,
 	                    new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-	                string valuequoted = JsonConvert.SerializeObject(Obj[i].Value,
+	                //Serialize the value from the json body and put it into a string.
+                    string valuequoted = JsonConvert.SerializeObject(Obj[i].Value,
 	                    new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
 
 	                var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, Obj[i].PartitionId)
