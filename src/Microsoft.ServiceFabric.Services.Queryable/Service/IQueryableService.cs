@@ -1,7 +1,7 @@
 ﻿using Microsoft.ServiceFabric.Services.Remoting;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
+
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {

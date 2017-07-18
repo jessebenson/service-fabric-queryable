@@ -38,7 +38,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				xml.LoadXml(metadata);
 
 				// Return xml response.
-				var response = new HttpResponseMessage { Content = new StringContent(xml.InnerXml, Encoding.UTF8, "application/xml") };
+				var response =
+					new HttpResponseMessage {Content = new StringContent(xml.InnerXml, Encoding.UTF8, "application/xml")};
 				return new ResponseMessageResult(response);
 			}
 			catch (Exception e)
@@ -74,27 +75,28 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		protected async Task<IHttpActionResult> DeleteAsync(string application, string service, string collection, ValueViewModel[] obj)
+		protected async Task<IHttpActionResult> DeleteAsync(string application, string service, string collection,
+			ValueViewModel[] obj)
 		{
 			var serviceUri = GetServiceUri(application, service);
 			try
 			{
-              
-			    bool[][] results = new bool[obj.Length][];
-                for (int i = 0; i < obj.Length; i++)
-			    {
-                    //Serialize the key from the json body and put it into a string.
-			        string keyquoted = JsonConvert.SerializeObject(obj[i].Key,
-			            new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-                    
-                    //Fetch partition proxy.
-			        var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, obj[i].PartitionId)
-			            .ConfigureAwait(false);
-                    //Perform delete opration.
-                     results[i] =  await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, keyquoted)))
-			            .ConfigureAwait(false);
-                    
-			    }
+
+				bool[][] results = new bool[obj.Length][];
+				for (int i = 0; i < obj.Length; i++)
+				{
+					//Serialize the key from the json body and put it into a string.
+					string keyquoted = JsonConvert.SerializeObject(obj[i].Key,
+						new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+
+					//Fetch partition proxy.
+					var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, obj[i].PartitionId)
+						.ConfigureAwait(false);
+					//Perform delete opration.
+					results[i] = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, keyquoted)))
+						.ConfigureAwait(false);
+
+				}
 				return Ok(results);
 			}
 			catch (Exception e)
@@ -104,85 +106,87 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		}
 
 
-	    protected async Task<IHttpActionResult> AddAsync(string application, string service, string collection,
-	        ValueViewModel[] Obj)
-	    {
-	        var serviceUri = GetServiceUri(application, service);
-	        try
-	        {
-	            bool[] results = new bool[Obj.Length];
-	            for (int i = 0; i < Obj.Length; i++)
-	            {
-	                //Serialize the key from the json body and put it into a string.
-                    string keyquoted = JsonConvert.SerializeObject(Obj[i].Key,
-	                    new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-	                //Serialize the value from the json body and put it into a string.
-                    string valuequoted = JsonConvert.SerializeObject(Obj[i].Value,
-	                    new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-                    //Fetch the proxy
-	                var proxy = await GetServiceProxyForAddAsync<IQueryableService>(serviceUri, Obj[i].PartitionId)
-	                    .ConfigureAwait(false);
-                    
-	                results[i] = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
+		protected async Task<IHttpActionResult> AddAsync(string application, string service, string collection,
+			ValueViewModel[] obj)
+		{
+			var serviceUri = GetServiceUri(application, service);
+			try
+			{
+				bool[] results = new bool[obj.Length];
+				for (int i = 0; i < obj.Length; i++)
+				{
+					//Serialize the key from the json body and put it into a string.
+					string keyquoted = JsonConvert.SerializeObject(obj[i].Key,
+						new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+					//Serialize the value from the json body and put it into a string.
+					string valuequoted = JsonConvert.SerializeObject(obj[i].Value,
+						new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+					//Fetch the proxy
+					var proxy = await GetServiceProxyForAddAsync<IQueryableService>(serviceUri, obj[i].PartitionId)
+						.ConfigureAwait(false);
 
-	            }
-	            return Ok(results);
-	        }
-	        catch (Exception e)
-	        {
-	            return HandleException(e, serviceUri);
-	        }
+					results[i] = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
 
-	    }
+				}
+				return Ok(results);
+			}
+			catch (Exception e)
+			{
+				return HandleException(e, serviceUri);
+			}
 
-	    protected async Task<IHttpActionResult> UpdateAsync(string application, string service, string collection, ValueViewModel[] Obj)
-	    {
-	        var serviceUri = GetServiceUri(application, service);
-	        try
-	        {
+		}
 
-	            bool[][] results = new bool[Obj.Length][];
-	            for (int i = 0; i < Obj.Length; i++)
-	            {
-	                //Serialize the key from the json body and put it into a string.
-                    string keyquoted = JsonConvert.SerializeObject(Obj[i].Key,
-	                    new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
-	                //Serialize the value from the json body and put it into a string.
-                    string valuequoted = JsonConvert.SerializeObject(Obj[i].Value,
-	                    new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+		protected async Task<IHttpActionResult> UpdateAsync(string application, string service, string collection,
+			ValueViewModel[] obj)
+		{
+			var serviceUri = GetServiceUri(application, service);
+			try
+			{
 
-	                var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, Obj[i].PartitionId)
-	                    .ConfigureAwait(false);
-	                results[i] = await Task.WhenAll(proxy.Select(p => p.UpdateAsync(collection, keyquoted, valuequoted)))
-	                    .ConfigureAwait(false);
-	            }
-	            return Ok(results);
-	        }
-	        catch (Exception e)
-	        {
-	            return HandleException(e, serviceUri);
-	        }
+				bool[][] results = new bool[obj.Length][];
+				for (int i = 0; i < obj.Length; i++)
+				{
+					//Serialize the key from the json body and put it into a string.
+					string keyquoted = JsonConvert.SerializeObject(obj[i].Key,
+						new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+					//Serialize the value from the json body and put it into a string.
+					string valuequoted = JsonConvert.SerializeObject(obj[i].Value,
+						new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
 
-	    }
+					var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, obj[i].PartitionId)
+						.ConfigureAwait(false);
+					results[i] = await Task.WhenAll(proxy.Select(p => p.UpdateAsync(collection, keyquoted, valuequoted)))
+						.ConfigureAwait(false);
+				}
+				return Ok(results);
+			}
+			catch (Exception e)
+			{
+				return HandleException(e, serviceUri);
+			}
 
-        private IHttpActionResult HandleException(Exception e, Uri serviceUri)
+		}
+
+		private IHttpActionResult HandleException(Exception e, Uri serviceUri)
 		{
 			if (e is FabricServiceNotFoundException)
-				return Content(HttpStatusCode.NotFound, new { Message = $"Service '{serviceUri}' not found." });
+				return Content(HttpStatusCode.NotFound, new {Message = $"Service '{serviceUri}' not found."});
 
 			if (e is ArgumentException)
 				return BadRequest(e.Message);
 			if (e.InnerException is ArgumentException)
 				return BadRequest(e.InnerException.Message);
-		    if (e is HttpException)
-		        return Content((HttpStatusCode)((HttpException)e).GetHttpCode(), ((HttpException)e).Message);
-		    if (e.InnerException is HttpException)
-		        return Content((HttpStatusCode)((HttpException)e.InnerException).GetHttpCode(), ((HttpException)e.InnerException).Message);
+			if (e is HttpException)
+				return Content((HttpStatusCode) ((HttpException) e).GetHttpCode(), ((HttpException) e).Message);
+			if (e.InnerException is HttpException)
+				return Content((HttpStatusCode) ((HttpException) e.InnerException).GetHttpCode(),
+					((HttpException) e.InnerException).Message);
 
-            if (e is AggregateException)
+			if (e is AggregateException)
 				return InternalServerError(e.InnerException ?? e);
-		    
-            return InternalServerError(e);
+
+			return InternalServerError(e);
 		}
 
 		private static async Task<T> GetServiceProxyAsync<T>(Uri serviceUri) where T : IService
@@ -194,37 +198,41 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private static async Task<IEnumerable<T>> GetServiceProxyForPartitionAsync<T>(Uri serviceUri, Guid partitionId) where T : IService
+		private static async Task<IEnumerable<T>> GetServiceProxyForPartitionAsync<T>(Uri serviceUri, Guid partitionId)
+			where T : IService
 		{
 			using (var client = new FabricClient())
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
-				var matchingPartitions = partitions.Where(p => p.PartitionInformation.Id == partitionId || partitionId == Guid.Empty);
+				var matchingPartitions =
+					partitions.Where(p => p.PartitionInformation.Id == partitionId || partitionId == Guid.Empty);
 				return matchingPartitions.Select(p => CreateServiceProxy<T>(serviceUri, p));
 			}
 		}
 
-	    private static async Task<T> GetServiceProxyForAddAsync<T>(Uri serviceUri, Guid partitionId) where T : IService
-	    {
-	        using (var client = new FabricClient())
-	        {
-	            var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
-	            var matchingPartitions = partitions.Where(p => p.PartitionInformation.Id == partitionId);
-	            if (partitionId == Guid.Empty)
-	            {
-	                return CreateServiceProxy<T>(serviceUri, partitions.First());
-	            }
-	            return CreateServiceProxy<T>(serviceUri, matchingPartitions.First());
+		private static async Task<T> GetServiceProxyForAddAsync<T>(Uri serviceUri, Guid partitionId) where T : IService
+		{
+			using (var client = new FabricClient())
+			{
+				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
+				var matchingPartitions = partitions.Where(p => p.PartitionInformation.Id == partitionId);
+				if (partitionId == Guid.Empty)
+				{
+					return CreateServiceProxy<T>(serviceUri, partitions.First());
+				}
+				return CreateServiceProxy<T>(serviceUri, matchingPartitions.First());
 
-	        }
-	    }
+			}
+		}
 
-        private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
+		private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
 		{
 			if (partition.PartitionInformation is Int64RangePartitionInformation)
-				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
+				return ServiceProxy.Create<T>(serviceUri,
+					new ServicePartitionKey(((Int64RangePartitionInformation) partition.PartitionInformation).LowKey));
 			if (partition.PartitionInformation is NamedPartitionInformation)
-				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
+				return ServiceProxy.Create<T>(serviceUri,
+					new ServicePartitionKey(((NamedPartitionInformation) partition.PartitionInformation).Name));
 			if (partition.PartitionInformation is SingletonPartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri);
 

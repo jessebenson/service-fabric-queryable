@@ -4,17 +4,17 @@ using System.Collections.Generic;
 using System.Fabric;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
+
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	public abstract class QueryableService : StatefulService, IQueryableService
 	{
-		public QueryableService(StatefulServiceContext serviceContext) : base(serviceContext)
+		protected QueryableService(StatefulServiceContext serviceContext) : base(serviceContext)
 		{
 		}
 
-		public QueryableService(StatefulServiceContext serviceContext, IReliableStateManagerReplica reliableStateManagerReplica) : base(serviceContext, reliableStateManagerReplica)
+		protected QueryableService(StatefulServiceContext serviceContext, IReliableStateManagerReplica reliableStateManagerReplica) : base(serviceContext, reliableStateManagerReplica)
 		{
 		}
 

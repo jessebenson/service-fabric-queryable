@@ -12,7 +12,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 	{
 		private readonly IReliableStateManager StateManager;
 
-		public QueryableServiceBase(StatefulServiceContext serviceContext, IReliableStateManagerReplica reliableStateManagerReplica) : base(serviceContext, reliableStateManagerReplica)
+		protected QueryableServiceBase(StatefulServiceContext serviceContext, IReliableStateManagerReplica reliableStateManagerReplica) : base(serviceContext, reliableStateManagerReplica)
 		{
 			StateManager = reliableStateManagerReplica;
 		}
