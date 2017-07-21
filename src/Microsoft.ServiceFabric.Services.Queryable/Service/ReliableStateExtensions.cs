@@ -141,10 +141,24 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					var valueType = dictionary.GetValueType();
 					var key = JsonConvert.DeserializeObject(keyJson, keyType);
 					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-					await (Task) dictionaryType.GetMethod("TryRemoveAsync", new[] {typeof(ITransaction), keyType})
-						.Invoke(dictionary, new[] {tx, key});
+					var deleteTask = (Task) dictionaryType.GetMethod("TryRemoveAsync", new[] {typeof(ITransaction), keyType}).Invoke(dictionary, new[] {tx, key});
+					await deleteTask.ConfigureAwait(false);
+
+					var result = deleteTask.GetPropertyValue<object>("Result");
+					
+					var success = result.GetPropertyValue<bool>("HasValue");
 
 					await tx.CommitAsync();
+
+					if (!success)
+
+					{
+						throw new HttpException((int) HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
+					}
+					else
+					{
+						return true;
+					}
 
 				}
 			}
@@ -153,7 +167,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
 			}
 
-			return true;
+
 
 		}
 
