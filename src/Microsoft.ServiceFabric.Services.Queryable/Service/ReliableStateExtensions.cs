@@ -82,13 +82,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
 				var entityType = reliableState.GetEntityType();
-				// var temp= results.Select(x=>JsonConvert.DeserializeObject(x,))
-
-
-				//var output = results.Select(r => new Tuple<Guid, object>(partitionId, r));
-
-				// JsonConvert.DeserializeObject<Guid, object>(results.Select(r => r));
-
 				var objects = results.Select(r => JsonConvert.DeserializeObject(r, entityType));
 				var queryResult = ApplyQuery(objects, entityType, query, aggregate: true);
 				results = queryResult.Select(JsonConvert.SerializeObject);

@@ -11,6 +11,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
@@ -82,23 +83,47 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			try
 			{
 
-				bool[][] results = new bool[obj.Length][];
-				Dictionary<JToken, bool[]> results1 = new Dictionary<JToken, bool[]>();
+				Dictionary<Guid, List<JToken>> preMap = new Dictionary<Guid, List<JToken>>();
+
+				Dictionary<Guid, Dictionary<JToken, bool>> ParResult = new Dictionary<Guid, Dictionary<JToken, bool>>();
+
 				for (int i = 0; i < obj.Length; i++)
 				{
-					//Serialize the key from the json body and put it into a string.
-					string keyquoted = JsonConvert.SerializeObject(obj[i].Key,
-						new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+					List<JToken> templist = new List<JToken>();
+					if (preMap.ContainsKey(obj[i].PartitionId))
+					{
+						templist = preMap[obj[i].PartitionId];
+						templist.Add(obj[i].Key);
+						preMap[obj[i].PartitionId] = templist;
 
-					//Fetch partition proxy.
-					var proxy = await GetServiceProxyForPartitionAsync<IQueryableService>(serviceUri, obj[i].PartitionId)
-						.ConfigureAwait(false);
-					//Perform delete opration.
-					results[i] = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, keyquoted)))
-						.ConfigureAwait(false);
-					results1[obj[i].Key] = results[i];
+					}
+					else
+					{
+						templist.Add(obj[i].Key);
+						preMap[obj[i].PartitionId] = templist;
+
+					}
+
 				}
-				return Ok(results1);
+
+				foreach (Guid mypid in preMap.Keys)
+				{
+					//Fetch partition proxy.
+					var proxy = await GetServiceProxyForDeleteAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
+					Dictionary<JToken, bool> keyResult = new Dictionary<JToken, bool>();
+
+					foreach (JToken myKey in preMap[mypid])
+					{
+						string keyquoted = JsonConvert.SerializeObject(myKey,
+							new JsonSerializerSettings {StringEscapeHandling = StringEscapeHandling.EscapeNonAscii});
+						keyResult[myKey] = await proxy.DeleteAsync(collection, keyquoted);
+
+					}
+
+					ParResult[mypid] = keyResult;
+				}
+
+				return Ok(ParResult);
 			}
 			catch (Exception e)
 			{
@@ -114,6 +139,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			try
 			{
 				bool[] results = new bool[obj.Length];
+				Dictionary<JToken, bool> results1 = new Dictionary<JToken, bool>();
 				for (int i = 0; i < obj.Length; i++)
 				{
 					//Serialize the key from the json body and put it into a string.
@@ -127,9 +153,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						.ConfigureAwait(false);
 
 					results[i] = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
+					results1[obj[i].Key] = results[i];
 
 				}
-				return Ok(results);
+				return Ok(results1);
 			}
 			catch (Exception e)
 			{
@@ -146,6 +173,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 
 				bool[][] results = new bool[obj.Length][];
+				Dictionary<JToken, bool[]> results1 = new Dictionary<JToken, bool[]>();
 				for (int i = 0; i < obj.Length; i++)
 				{
 					//Serialize the key from the json body and put it into a string.
@@ -159,8 +187,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						.ConfigureAwait(false);
 					results[i] = await Task.WhenAll(proxy.Select(p => p.UpdateAsync(collection, keyquoted, valuequoted)))
 						.ConfigureAwait(false);
+					results1[obj[i].Key] = results[i];
+
 				}
-				return Ok(results);
+				return Ok(results1);
 			}
 			catch (Exception e)
 			{
@@ -190,12 +220,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return InternalServerError(e);
 		}
 
+		private static readonly ThreadLocal<Random> random = new ThreadLocal<Random>(() => new Random());
+
 		private static async Task<T> GetServiceProxyAsync<T>(Uri serviceUri) where T : IService
 		{
 			using (var client = new FabricClient())
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
-				return CreateServiceProxy<T>(serviceUri, partitions.First());
+				int randomindex = random.Value.Next(0, partitions.Count);
+				return CreateServiceProxy<T>(serviceUri, partitions[randomindex]);
 			}
 		}
 
@@ -211,15 +244,30 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
+		private static async Task<T> GetServiceProxyForDeleteAsync<T>(Uri serviceUri, Guid partitionId)
+			where T : IService
+		{
+			using (var client = new FabricClient())
+			{
+				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
+				var matchingPartition = partitions.Where(p => p.PartitionInformation.Id == partitionId );
+				return  CreateServiceProxy<T>(serviceUri, matchingPartition.First());
+			}
+		}
+
+
 		private static async Task<T> GetServiceProxyForAddAsync<T>(Uri serviceUri, Guid partitionId) where T : IService
 		{
 			using (var client = new FabricClient())
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
 				var matchingPartitions = partitions.Where(p => p.PartitionInformation.Id == partitionId);
+
+				int randomindex = random.Value.Next(0, partitions.Count);
+
 				if (partitionId == Guid.Empty)
 				{
-					return CreateServiceProxy<T>(serviceUri, partitions.First());
+					return CreateServiceProxy<T>(serviceUri, partitions[randomindex]);
 				}
 				return CreateServiceProxy<T>(serviceUri, matchingPartitions.First());
 
