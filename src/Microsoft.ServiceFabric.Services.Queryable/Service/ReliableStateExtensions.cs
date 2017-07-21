@@ -345,7 +345,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var asyncEnumerator = asyncEnumerable.CallMethod<object>("GetAsyncEnumerator");
 
 				// Copy all items from the reliable dictionary into memory.
-				// TODO: cache the method/property objects and invoke with new parameters
 				while (await asyncEnumerator.CallMethod<Task<bool>>("MoveNextAsync", cancellationToken).ConfigureAwait(false))
 				{
 					var current = asyncEnumerator.GetPropertyValue<object>("Current");

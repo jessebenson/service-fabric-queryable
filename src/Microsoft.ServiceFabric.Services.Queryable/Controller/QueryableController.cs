@@ -83,6 +83,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 
 				bool[][] results = new bool[obj.Length][];
+				Dictionary<JToken, bool[]> results1 = new Dictionary<JToken, bool[]>();
 				for (int i = 0; i < obj.Length; i++)
 				{
 					//Serialize the key from the json body and put it into a string.
@@ -95,9 +96,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					//Perform delete opration.
 					results[i] = await Task.WhenAll(proxy.Select(p => p.DeleteAsync(collection, keyquoted)))
 						.ConfigureAwait(false);
-
+					results1[obj[i].Key] = results[i];
 				}
-				return Ok(results);
+				return Ok(results1);
 			}
 			catch (Exception e)
 			{

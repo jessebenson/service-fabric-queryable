@@ -51,6 +51,7 @@ namespace Basic.WebSvc.Controllers
 		/// "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
 		///}]
 		/// Record belonging to the key provided in the JSON Body of HTTP Request is located in the given partitionID and removed from it.
+		/// If the record doesnt exist, then a bad request errorcode is sent back.
 		/// 
 		/// BATCH DELETE (Provide an Array of keys in JSON format inside body of HTTP Delete request to delete them all (with kindness ;) ). 
 		/// -DELETE /query/BasicApp/ProductSvc/products
@@ -94,7 +95,7 @@ namespace Basic.WebSvc.Controllers
 		///	    }
 		///	    ]
 		/// Record belonging to the key provided in the JSON Body of HTTP POST Request is added to a partition ID mentioned, if its not existing already.
-		/// Incase Partition ID is not mentioned, Record is added to random partition ID.
+		/// Incase Partition ID is not mentioned, Record is added to random partition ID. If it is already existing a bad request exception is raised.
 		/// 
 		/// 
 		/// BATCH ADD (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP POST request to add them all.). 
@@ -162,17 +163,6 @@ namespace Basic.WebSvc.Controllers
 		///	        "PartitionId": "a76fd004-37aa-4ea6-94a0-3013d8956fef"
 		///	    }]
 		/// 
-		/// Update a Key with New Value in all Partitions:
-		/// -PUT /query/BasicApp/ProductSvc/products 
-		/// In Body : 
-		///     [{
-		///         "Key": "sku-218"
-		///       },
-		///         "Value":  {
-		///	            "Sku": "sku-218",
-		///	            "Price": 11.85,
-		///	            "Quantity":41
-		///	    }]
 		/// 
 		/// </summary>
 		[HttpPut]
