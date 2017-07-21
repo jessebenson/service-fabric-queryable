@@ -140,7 +140,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				bool[] results = new bool[obj.Length];
 				Dictionary<JToken, bool> results1 = new Dictionary<JToken, bool>();
 
-				Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
+				/*Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
 				
 				for (int i = 0; i < obj.Length; i++)
 				{
@@ -181,7 +181,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				}
 
 				return Ok(parResult);
-
+				*/
 
 				for (int i = 0; i < obj.Length; i++)
 				{
