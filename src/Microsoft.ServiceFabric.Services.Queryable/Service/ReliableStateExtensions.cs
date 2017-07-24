@@ -141,7 +141,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					await tx.CommitAsync();
 
 					if (!success)
-
 					{
 						throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
 					}
