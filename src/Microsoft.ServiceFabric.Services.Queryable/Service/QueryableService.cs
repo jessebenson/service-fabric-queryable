@@ -14,7 +14,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 		}
 
-		protected QueryableService(StatefulServiceContext serviceContext, IReliableStateManagerReplica reliableStateManagerReplica) : base(serviceContext, reliableStateManagerReplica)
+		protected QueryableService(StatefulServiceContext serviceContext,
+			IReliableStateManagerReplica reliableStateManagerReplica) : base(serviceContext, reliableStateManagerReplica)
 		{
 		}
 
@@ -23,31 +24,32 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return StateManager.GetMetadataAsync();
 		}
 
-		Task<IEnumerable<string>> IQueryableService.QueryAsync(string collection, IEnumerable<KeyValuePair<string, string>> query)
+		Task<IEnumerable<string>> IQueryableService.QueryAsync(string collection,
+			IEnumerable<KeyValuePair<string, string>> query)
 		{
 			return StateManager.QueryAsync(Context, collection, query, CancellationToken.None);
-            //this.Partition.PartitionInfo.Id
+			//this.Partition.PartitionInfo.Id
 		}
 
-		Task<IEnumerable<string>> IQueryableService.QueryPartitionAsync(string collection, IEnumerable<KeyValuePair<string, string>> query)
+		Task<IEnumerable<string>> IQueryableService.QueryPartitionAsync(string collection,
+			IEnumerable<KeyValuePair<string, string>> query)
 		{
 			return StateManager.QueryPartitionAsync(collection, query, this.Partition.PartitionInfo.Id, CancellationToken.None);
 		}
 
+		Task<bool> IQueryableService.DeleteAsync(string collection, string key)
+		{
+			return StateManager.DeleteAsync(collection, key);
+		}
 
-        Task<bool> IQueryableService.DeleteAsync(string collection, string key )
-        {
-            return StateManager.DeleteAsync(collection,key);
-        }
+		Task<bool> IQueryableService.AddAsync(string collection, string key, string val)
+		{
+			return StateManager.AddAsync(collection, key, val);
+		}
 
-
-	    Task<bool> IQueryableService.AddAsync(string collection, string key, string val)
-	    {
-	        return StateManager.AddAsync(collection, key,val);
-	    }
-	    Task<bool> IQueryableService.UpdateAsync(string collection, string key, string val)
-	    {
-	        return StateManager.UpdateAsync(collection, key, val);
-	    }
-    }
+		Task<bool> IQueryableService.UpdateAsync(string collection, string key, string val)
+		{
+			return StateManager.UpdateAsync(collection, key, val);
+		}
+	}
 }

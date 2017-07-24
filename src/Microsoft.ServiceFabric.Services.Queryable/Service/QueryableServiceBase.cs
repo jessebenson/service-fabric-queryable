@@ -46,7 +46,5 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 	    {
 	        return StateManager.UpdateAsync(collection, key, val);
 	    }
-
-
     }
 }

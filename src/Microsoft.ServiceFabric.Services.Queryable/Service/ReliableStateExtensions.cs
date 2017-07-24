@@ -42,7 +42,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var entity = builder.AddEntity(queryable.Value);
 				builder.AddEntitySet(queryable.Key, entity);
 			}
-
 			var model = builder.GetEdmModel();
 
 			// Write the OData metadata document.
@@ -75,7 +74,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				{stateManager.QueryPartitionAsync(collection, query, context.PartitionId, cancellationToken)});
 			var queryResults = await Task.WhenAll(queries).ConfigureAwait(false);
 			var results = queryResults.SelectMany(r => r);
-
 
 			// Run the aggregation query to get the final results (e.g. for top, orderby, project).
 			if (query.Any())
@@ -116,7 +114,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var entityType = reliableState.GetEntityType();
 				results = ApplyQuery(results, entityType, query, aggregate: false);
 			}
-
 			// Return the filtered data as json.
 			return results.Select(JsonConvert.SerializeObject);
 		}
@@ -131,7 +128,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		public static async Task<bool> DeleteAsync(this IReliableStateManager stateManager, string collection,
 			string keyJson)
 		{
-
 			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
 			try
 			{
@@ -143,11 +139,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
 					var deleteTask = (Task) dictionaryType.GetMethod("TryRemoveAsync", new[] {typeof(ITransaction), keyType}).Invoke(dictionary, new[] {tx, key});
 					await deleteTask.ConfigureAwait(false);
-
-					var result = deleteTask.GetPropertyValue<object>("Result");
-					
+					var result = deleteTask.GetPropertyValue<object>("Result");					
 					var success = result.GetPropertyValue<bool>("HasValue");
-
 					await tx.CommitAsync();
 
 					if (!success)
@@ -159,16 +152,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					{
 						return true;
 					}
-
 				}
 			}
 			catch (ArgumentException)
 			{
 				throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
 			}
-
-
-
 		}
 
 		/// <summary>
@@ -182,9 +171,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		public static async Task<bool> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
 			string valJson)
 		{
-
 			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-
 			try
 			{
 				using (ITransaction tx = stateManager.CreateTransaction())
@@ -206,14 +193,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				throw new HttpException((int) HttpStatusCode.BadRequest, "A value with same key already exists.");
 			}
-
 			return true;
 		}
 
 		public static async Task<bool> UpdateAsync(this IReliableStateManager stateManager, string collection,
 			string keyJson, string valJson)
 		{
-
 			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
 
 			try
@@ -237,11 +222,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 			catch (ArgumentException)
 			{
-
-				throw new HttpException((int)HttpStatusCode.BadRequest, "Updating to same value again.");
-
+				throw new HttpException((int) HttpStatusCode.BadRequest, "Updating to same value again.");
 			}
-
 			return true;
 		}
 

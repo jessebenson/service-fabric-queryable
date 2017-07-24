@@ -19,8 +19,6 @@ using System.Web.Http.Results;
 using System.Xml;
 using Microsoft.ServiceFabric.Services.Queryable.Controller;
 
-
-
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	public abstract class QueryableController : ApiController

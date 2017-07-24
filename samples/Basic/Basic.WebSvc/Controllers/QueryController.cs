@@ -95,8 +95,9 @@ namespace Basic.WebSvc.Controllers
 		///	    }
 		///	    ]
 		/// Record belonging to the key provided in the JSON Body of HTTP POST Request is added to a partition ID mentioned, if its not existing already.
-		/// Incase Partition ID is not mentioned, Record is added to random partition ID. If it is already existing a bad request exception is raised.
+		/// Incase Partition ID is not mentioned, Record is added to random partition ID. 
 		/// 
+		/// If it is already existing a bad request exception is raised.
 		/// 
 		/// BATCH ADD (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP POST request to add them all.). 
 		/// -POST /query/BasicApp/ProductSvc/products
