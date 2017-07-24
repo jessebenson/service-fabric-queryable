@@ -41,7 +41,6 @@ namespace Basic.WebSvc.Controllers
 			return QueryAsync(application, service, collection);
 		}
 
-
 		/// <summary>
 		/// Deletes appropriate key & corresponding value from the given reliable collection in the queryable service.
 		/// SINGLE DELETE:
@@ -81,7 +80,7 @@ namespace Basic.WebSvc.Controllers
 		}
 
 		/// <summary>
-		/// Adds appropriate key & corresponding value to the given reliable collection in the queryable service.
+		/// Adds appropriate key and corresponding value to the given reliable collection in the queryable service. If it is already existing a bad request exception is raised.
 		/// SINGLE ADD:
 		/// - POST /query/BasicApp/ProductSvc/products and in Body provide a Json:
 		/// In Body: [{
@@ -95,9 +94,7 @@ namespace Basic.WebSvc.Controllers
 		///	    }
 		///	    ]
 		/// Record belonging to the key provided in the JSON Body of HTTP POST Request is added to a partition ID mentioned, if its not existing already.
-		/// Incase Partition ID is not mentioned, Record is added to random partition ID. 
-		/// 
-		/// If it is already existing a bad request exception is raised.
+		/// Incase Partition ID is not mentioned, Record is added to random partition ID. If it is already existing a bad request exception is raised.
 		/// 
 		/// BATCH ADD (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP POST request to add them all.). 
 		/// -POST /query/BasicApp/ProductSvc/products

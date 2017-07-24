@@ -192,7 +192,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					//Fetch the proxy
 					var proxy = await GetServiceProxyForAddAsync<IQueryableService>(serviceUri, obj[i].PartitionId)
 						.ConfigureAwait(false);
-
 					results[i] = await proxy.AddAsync(collection, keyquoted, valuequoted).ConfigureAwait(false);
 					results1[obj[i].Key] = results[i];
 
