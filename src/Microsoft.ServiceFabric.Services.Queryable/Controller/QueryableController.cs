@@ -133,46 +133,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				bool[] results = new bool[obj.Length];
 				Dictionary<JToken, bool> results1 = new Dictionary<JToken, bool>();
 
-				/*Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
-
-				for (int i = 0; i < obj.Length; i++)
-				{
-					List<int> templist = new List<int>();
-					if (preMap.ContainsKey(obj[i].PartitionId))
-					{
-						templist = preMap[obj[i].PartitionId];
-						templist.Add(i);
-						preMap[obj[i].PartitionId] = templist;
-					}
-					else
-					{
-						templist.Add(i);
-						preMap[obj[i].PartitionId] = templist;
-					}
-				}
-
-				foreach (Guid mypid in preMap.Keys)
-				{
-					//Fetch partition proxy.
-					var proxy = await GetServiceProxyForDeleteAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
-					Dictionary<JToken, bool> keyResult = new Dictionary<JToken, bool>();
-
-					foreach (int k in preMap[mypid])
-					{
-						string keyquoted = JsonConvert.SerializeObject(obj[k].Key,
-							new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
-						//Serialize the value from the json body and put it into a string.
-						string valuequoted = JsonConvert.SerializeObject(obj[k].Value,
-							new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
-						//keyResult[i] = await proxy.DeleteAsync(collection, keyquoted);
-					}
-
-					parResult[mypid] = keyResult;
-				}
-
-				return Ok(parResult);
-				*/
-
 				for (int i = 0; i < obj.Length; i++)
 				{
 					//Serialize the key from the json body and put it into a string.
