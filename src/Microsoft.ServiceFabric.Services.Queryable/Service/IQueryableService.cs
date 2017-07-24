@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	/// <summary>
@@ -19,7 +18,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <summary>
 		/// Query the service using the query parameters defined in <paramref name="query"/> against
 		/// the reliable collection with the name <paramref name="collection"/>.
-		/// 
+		///
 		/// The service partition receiving this call is responsible for querying all other partitions
 		/// and aggregating the results.
 		/// </summary>
@@ -45,7 +44,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="key">Entity key inside reliable collection.</param>
 		/// <returns>Boolean signifying the succes/failure operation.</returns>
 		Task<bool> DeleteAsync(string collection, string key);
-		
+
 		/// <summary>
 		/// Add the value given in parameter <paramref name="val"/> belonging to the key mentioned in parameter <paramref name="key"/> into the
 		/// the reliable collection with the name <paramref name="collection"/>.
@@ -55,7 +54,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="val">Value corresponding to the key in the reliable collection.</param>
 		/// <returns>Boolean signifying the succes/failure operation.</returns>
 		Task<bool> AddAsync(string collection, string key, string val);
-		
+
 		/// <summary>
 		/// Update the value given in parameter <paramref name="val"/> belonging to the key mentioned in parameter <paramref name="key"/> into the
 		/// the reliable collection with the name <paramref name="collection"/>.
@@ -65,5 +64,5 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="val">Value corresponding to the key in the reliable collection.</param>
 		/// <returns>Boolean signifying the succes/failure operation.</returns>
 		Task<bool> UpdateAsync(string collection, string key, string val);
-    }
+	}
 }

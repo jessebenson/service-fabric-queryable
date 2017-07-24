@@ -1,7 +1,7 @@
 ﻿using Microsoft.ServiceFabric.Services.Queryable;
+using Microsoft.ServiceFabric.Services.Queryable.Controller;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Microsoft.ServiceFabric.Services.Queryable.Controller;
 
 namespace Basic.WebSvc.Controllers
 {
@@ -11,7 +11,7 @@ namespace Basic.WebSvc.Controllers
 		/// Returns OData metadata about the queryable reliable collections
 		/// and types in the application/service.  If the service name
 		/// is 'fabric:/MyApp/MyService', the HTTP Uri should be formatted as:
-		/// 
+		///
 		/// - GET query/MyApp/MyService/$metadata
 		/// </summary>
 		[HttpGet]
@@ -24,13 +24,13 @@ namespace Basic.WebSvc.Controllers
 		/// <summary>
 		/// Queries the given reliable collection in the queryable service
 		/// using the OData query language. Example queries:
-		/// 
+		///
 		/// Get 10 items from the reliable dictionary named 'my-dictionary' in the service named 'fabric:/MyApp/MyService'.
 		/// - GET query/MyApp/MyService/my-dictionary?$top=10
-		/// 
+		///
 		/// Get 10 items with Quantity between 2 and 4, inclusively.
 		/// - GET query/MyApp/MyService/my-dictionary?$top=10&$filter=Quantity ge 2 and Quantity le 4
-		/// 
+		///
 		/// Get 10 items, returning only the Price and Quantity properties, sorted by Price in descending order.
 		/// - GET query/MyApp/MyService/my-dictionary?$top=10&$select=Price,Quantity&$orderby=Price desc
 		/// </summary>
@@ -51,8 +51,8 @@ namespace Basic.WebSvc.Controllers
 		///}]
 		/// Record belonging to the key provided in the JSON Body of HTTP Request is located in the given partitionID and removed from it.
 		/// If the record doesnt exist, then a bad request errorcode is sent back.
-		/// 
-		/// BATCH DELETE (Provide an Array of keys in JSON format inside body of HTTP Delete request to delete them all (with kindness ;) ). 
+		///
+		/// BATCH DELETE (Provide an Array of keys in JSON format inside body of HTTP Delete request to delete them all (with kindness ;) ).
 		/// -DELETE /query/BasicApp/ProductSvc/products
 		/// In Body: [{
 		///"Key": "sku-218",
@@ -61,14 +61,14 @@ namespace Basic.WebSvc.Controllers
 		///"Key": "sku-217",
 		/// "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
 		///}]
-		/// 
+		///
 		/// DELETE A Key from All Partitions :
-		/// -DELETE /query/BasicApp/ProductSvc/products 
-		/// In Body : 
+		/// -DELETE /query/BasicApp/ProductSvc/products
+		/// In Body :
 		/// [{
 		///"Key": "sku-218"
 		///}]
-		/// 
+		///
 		/// </summary>
 
 		[HttpDelete]
@@ -95,8 +95,8 @@ namespace Basic.WebSvc.Controllers
 		///	    ]
 		/// Record belonging to the key provided in the JSON Body of HTTP POST Request is added to a partition ID mentioned, if its not existing already.
 		/// Incase Partition ID is not mentioned, Record is added to random partition ID. If it is already existing a bad request exception is raised.
-		/// 
-		/// BATCH ADD (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP POST request to add them all.). 
+		///
+		/// BATCH ADD (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP POST request to add them all.).
 		/// -POST /query/BasicApp/ProductSvc/products
 		/// In Body: [{
 		///             "Key": "sku-218",
@@ -105,14 +105,14 @@ namespace Basic.WebSvc.Controllers
 		///             "Key": "sku-217",
 		///             "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
 		///          }]
-		/// 
+		///
 		/// ADD a Key & Value to a random Partition:
-		/// -POST /query/BasicApp/ProductSvc/products 
-		/// In Body : 
+		/// -POST /query/BasicApp/ProductSvc/products
+		/// In Body :
 		/// [{
 		///"Key": "sku-218"
 		///}]
-		/// 
+		///
 		/// </summary>
 		[HttpPost]
 		[Route("query/{application}/{service}/{collection}")]
@@ -138,9 +138,9 @@ namespace Basic.WebSvc.Controllers
 		///	    ]
 		/// Record belonging to the key provided in the JSON Body of HTTP PUT Request is loacted in the partition ID mentioned & is updated with the new value, if its not existing already then its added..
 		/// Incase Partition ID is not mentioned, Records with matching key from all partitions are located & updated with the new value.
-		/// 
-		/// 
-		/// BATCH UPDATE (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP PUT request to update all the keys with new values.). 
+		///
+		///
+		/// BATCH UPDATE (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP PUT request to update all the keys with new values.).
 		/// -PUT /query/BasicApp/ProductSvc/products
 		/// In Body: [{
 		///	        "Key": "sku-217",
@@ -160,8 +160,8 @@ namespace Basic.WebSvc.Controllers
 		///	        },
 		///	        "PartitionId": "a76fd004-37aa-4ea6-94a0-3013d8956fef"
 		///	    }]
-		/// 
-		/// 
+		///
+		///
 		/// </summary>
 		[HttpPut]
 		[Route("query/{application}/{service}/{collection}")]

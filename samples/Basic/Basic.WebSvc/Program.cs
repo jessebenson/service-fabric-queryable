@@ -1,5 +1,5 @@
-﻿using System.Threading;
-using Microsoft.ServiceFabric.Services.Runtime;
+﻿using Microsoft.ServiceFabric.Services.Runtime;
+using System.Threading;
 
 namespace Basic.WebSvc
 {
@@ -18,7 +18,7 @@ namespace Basic.WebSvc
 			ServiceRuntime.RegisterServiceAsync("WebSvcType",
 				context => new WebSvc(context)).GetAwaiter().GetResult();
 
-			// Prevents this host process from terminating so services keeps running. 
+			// Prevents this host process from terminating so services keeps running.
 			Thread.Sleep(Timeout.Infinite);
 		}
 	}

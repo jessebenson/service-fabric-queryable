@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Fabric;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -32,19 +31,19 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return StateManager.QueryPartitionAsync(collection, query, this.Partition.PartitionInfo.Id, CancellationToken.None);
 		}
 
-        Task<bool> IQueryableService.DeleteAsync(string collection, string key)
-        {
-            return StateManager.DeleteAsync(collection, key);
-        }
+		Task<bool> IQueryableService.DeleteAsync(string collection, string key)
+		{
+			return StateManager.DeleteAsync(collection, key);
+		}
 
-	    Task<bool> IQueryableService.AddAsync(string collection, string key, string val)
-	    {
-	        return StateManager.AddAsync(collection, key, val);
-	    }
+		Task<bool> IQueryableService.AddAsync(string collection, string key, string val)
+		{
+			return StateManager.AddAsync(collection, key, val);
+		}
 
-	    Task<bool> IQueryableService.UpdateAsync(string collection, string key, string val)
-	    {
-	        return StateManager.UpdateAsync(collection, key, val);
-	    }
-    }
+		Task<bool> IQueryableService.UpdateAsync(string collection, string key, string val)
+		{
+			return StateManager.UpdateAsync(collection, key, val);
+		}
+	}
 }

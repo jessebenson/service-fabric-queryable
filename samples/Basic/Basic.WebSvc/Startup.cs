@@ -9,7 +9,7 @@ namespace Basic.WebSvc
 		// parameter in the WebApp.Start method.
 		public static void ConfigureApp(IAppBuilder appBuilder)
 		{
-			// Configure Web API for self-host. 
+			// Configure Web API for self-host.
 			HttpConfiguration config = new HttpConfiguration();
 			config.MapHttpAttributeRoutes();
 			appBuilder.UseWebApi(config);

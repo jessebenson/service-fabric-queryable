@@ -28,18 +28,22 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 							Filter = new FilterQueryOption(queryParameter.Value, context);
 						}
 						break;
+
 					case "$orderby":
 						OrderBy = new OrderByQueryOption(queryParameter.Value, context);
 						break;
+
 					case "$select":
 						if (aggregate)
 						{
 							Select = new SelectExpandQueryOption(queryParameter.Value, string.Empty, context);
 						}
 						break;
+
 					case "$top":
 						Top = new TopQueryOption(queryParameter.Value, context);
 						break;
+
 					case "$format":
 						break;
 

@@ -1,5 +1,4 @@
-﻿using Microsoft.Data.Edm;
-using Microsoft.Data.OData;
+﻿using Microsoft.Data.OData;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Services.Client;
@@ -13,14 +12,12 @@ using System.Fabric.Query;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Query;
-
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -46,10 +43,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 			// Write the OData metadata document.
 			using (var stream = new MemoryStream())
-			using (var message = new InMemoryMessage {Stream = stream})
+			using (var message = new InMemoryMessage { Stream = stream })
 			{
 				var settings = new ODataMessageWriterSettings();
-				var writer = new ODataMessageWriter((IODataResponseMessage) message, settings, model);
+				var writer = new ODataMessageWriter((IODataResponseMessage)message, settings, model);
 				writer.WriteMetadataDocument();
 				return Encoding.UTF8.GetString(stream.ToArray());
 			}
@@ -137,16 +134,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					var valueType = dictionary.GetValueType();
 					var key = JsonConvert.DeserializeObject(keyJson, keyType);
 					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-					var deleteTask = (Task) dictionaryType.GetMethod("TryRemoveAsync", new[] {typeof(ITransaction), keyType}).Invoke(dictionary, new[] {tx, key});
+					var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
 					await deleteTask.ConfigureAwait(false);
-					var result = deleteTask.GetPropertyValue<object>("Result");					
+					var result = deleteTask.GetPropertyValue<object>("Result");
 					var success = result.GetPropertyValue<bool>("HasValue");
 					await tx.CommitAsync();
 
 					if (!success)
 
 					{
-						throw new HttpException((int) HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
+						throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
 					}
 					else
 					{
@@ -182,16 +179,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					var val = JsonConvert.DeserializeObject(valJson, valueType);
 
 					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-					await (Task) dictionaryType.GetMethod("AddAsync", new[] {typeof(ITransaction), keyType, valueType})
-						.Invoke(dictionary, new[] {tx, key, val});
+					await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType })
+						.Invoke(dictionary, new[] { tx, key, val });
 
 					await tx.CommitAsync();
-
 				}
 			}
 			catch (ArgumentException)
 			{
-				throw new HttpException((int) HttpStatusCode.BadRequest, "A value with same key already exists.");
+				throw new HttpException((int)HttpStatusCode.BadRequest, "A value with same key already exists.");
 			}
 			return true;
 		}
@@ -213,16 +209,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
 
-					await (Task) dictionaryType.GetMethod("SetAsync", new[] {typeof(ITransaction), keyType, valueType})
-						.Invoke(dictionary, new[] {tx, key, val});
+					await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType })
+						.Invoke(dictionary, new[] { tx, key, val });
 
 					await tx.CommitAsync();
-
 				}
 			}
 			catch (ArgumentException)
 			{
-				throw new HttpException((int) HttpStatusCode.BadRequest, "Updating to same value again.");
+				throw new HttpException((int)HttpStatusCode.BadRequest, "Updating to same value again.");
 			}
 			return true;
 		}
@@ -327,7 +322,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				// Create the async enumerable.
 				var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(state.GetType().GetGenericArguments());
-				var createEnumerableAsyncTask = state.CallMethod<Task>("CreateEnumerableAsync", new[] {typeof(ITransaction)}, tx);
+				var createEnumerableAsyncTask = state.CallMethod<Task>("CreateEnumerableAsync", new[] { typeof(ITransaction) }, tx);
 				await createEnumerableAsyncTask.ConfigureAwait(false);
 
 				var asyncEnumerable = createEnumerableAsyncTask.GetPropertyValue<object>("Result");
@@ -366,10 +361,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 			if (partition.PartitionInformation is Int64RangePartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri,
-					new ServicePartitionKey(((Int64RangePartitionInformation) partition.PartitionInformation).LowKey));
+					new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
 			if (partition.PartitionInformation is NamedPartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri,
-					new ServicePartitionKey(((NamedPartitionInformation) partition.PartitionInformation).Name));
+					new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
 			if (partition.PartitionInformation is SingletonPartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri);
 
@@ -395,7 +390,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 			// Execute the query.
 			var options = new ODataQueryOptions(query, context, aggregate);
-			var settings = new ODataQuerySettings {HandleNullPropagation = HandleNullPropagationOption.True};
+			var settings = new ODataQuerySettings { HandleNullPropagation = HandleNullPropagationOption.True };
 			var result = options.ApplyTo(casted.AsQueryable(), settings);
 
 			// Get the query results.

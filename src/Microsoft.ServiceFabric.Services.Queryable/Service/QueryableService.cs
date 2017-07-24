@@ -5,7 +5,6 @@ using System.Fabric;
 using System.Threading;
 using System.Threading.Tasks;
 
-
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	public abstract class QueryableService : StatefulService, IQueryableService

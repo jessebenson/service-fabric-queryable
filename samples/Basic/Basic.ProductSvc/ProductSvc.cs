@@ -1,14 +1,14 @@
-﻿using System;
+﻿using Basic.Common;
+using Microsoft.ServiceFabric.Data.Collections;
+using Microsoft.ServiceFabric.Services.Communication.Runtime;
+using Microsoft.ServiceFabric.Services.Queryable;
+using Microsoft.ServiceFabric.Services.Remoting.Runtime;
+using System;
 using System.Collections.Generic;
 using System.Fabric;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.ServiceFabric.Data.Collections;
-using Microsoft.ServiceFabric.Services.Communication.Runtime;
-using Microsoft.ServiceFabric.Services.Queryable;
-using Microsoft.ServiceFabric.Services.Remoting.Runtime;
-using Basic.Common;
 
 namespace Basic.ProductSvc
 {
@@ -53,7 +53,7 @@ namespace Basic.ProductSvc
 				using (var tx = StateManager.CreateTransaction())
 				{
 					var key = $"sku-{i}";
-					var value = new Product {Sku = key, Price = 10.0 + (i / 10.0), Quantity = i};
+					var value = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };
 					await products.SetAsync(tx, key, value, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
 					await tx.CommitAsync().ConfigureAwait(false);
 				}
