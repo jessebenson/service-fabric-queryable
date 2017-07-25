@@ -122,7 +122,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <param name="keyJson">Entity Key.</param>
 		/// <returns>A boolean value based on the success of the operation.</returns>
-		public static async Task<bool> DeleteAsync(this IReliableStateManager stateManager, string collection,
+		public static async Task<int> DeleteAsync(this IReliableStateManager stateManager, string collection,
 			string keyJson)
 		{
 			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
@@ -142,17 +142,22 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 					if (!success)
 					{
-						throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
+						//throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
+						return (int)HttpStatusCode.BadRequest;
 					}
+					
 					else
 					{
-						return true;
+						
+						return (int)HttpStatusCode.OK;
 					}
+				
 				}
 			}
 			catch (ArgumentException)
 			{
-				throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
+				//throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
+				return (int)HttpStatusCode.BadRequest;
 			}
 		}
 
@@ -164,7 +169,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="keyJson">Entity Key.</param>
 		/// <param name="valJson">Value.</param>
 		/// <returns>A boolean value based on the success of the operation.</returns>
-		public static async Task<bool> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
+		public static async Task<int> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
 			string valJson)
 		{
 			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
@@ -186,12 +191,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 			catch (ArgumentException)
 			{
-				throw new HttpException((int)HttpStatusCode.BadRequest, "A value with same key already exists.");
+				//throw new HttpException((int)HttpStatusCode.BadRequest, "A value with same key already exists.");
+				return (int) HttpStatusCode.BadRequest;
 			}
-			return true;
+			return (int)HttpStatusCode.OK;
 		}
 
-		public static async Task<bool> UpdateAsync(this IReliableStateManager stateManager, string collection,
+		public static async Task<int> UpdateAsync(this IReliableStateManager stateManager, string collection,
 			string keyJson, string valJson)
 		{
 			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
@@ -216,9 +222,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 			catch (ArgumentException)
 			{
-				throw new HttpException((int)HttpStatusCode.BadRequest, "Updating to same value again.");
+				//throw new HttpException((int)HttpStatusCode.BadRequest, "Updating to same value again.");
+				return (int)HttpStatusCode.BadRequest;
 			}
-			return true;
+			return (int) HttpStatusCode.OK;
 		}
 
 		/// <summary>

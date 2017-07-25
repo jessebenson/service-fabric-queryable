@@ -83,7 +83,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				Dictionary<Guid, List<JToken>> preMap = new Dictionary<Guid, List<JToken>>();
 
 				Dictionary<Guid, Dictionary<JToken, bool>> parResult = new Dictionary<Guid, Dictionary<JToken, bool>>();
-
+				List<DmlResult> finalResult = new List<DmlResult>();
 				for (int i = 0; i < obj.Length; i++)
 				{
 					List<JToken> templist = new List<JToken>();
@@ -104,19 +104,21 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				{
 					//Fetch partition proxy.
 					var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
-					Dictionary<JToken, bool> keyResult = new Dictionary<JToken, bool>();
 
 					foreach (JToken myKey in preMap[mypid])
 					{
 						string keyquoted = JsonConvert.SerializeObject(myKey,
 							new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
-						keyResult[myKey] = await proxy.DeleteAsync(collection, keyquoted);
-					}
 
-					parResult[mypid] = keyResult;
+						DmlResult tempResult = new DmlResult();
+						tempResult.Key = myKey;
+						tempResult.PartitionId = mypid;
+						tempResult.Status = await proxy.DeleteAsync(collection, keyquoted);
+						finalResult.Add(tempResult);
+					}
 				}
 
-				return Ok(parResult);
+				return Ok(finalResult);
 			}
 			catch (Exception e)
 			{
@@ -133,6 +135,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
 
 				Dictionary<Guid, Dictionary<JToken, bool>> parResult = new Dictionary<Guid, Dictionary<JToken, bool>>();
+
+				List<DmlResult> finalResult = new List<DmlResult>();
 
 				for (int i = 0; i < obj.Length; i++)
 				{
@@ -158,7 +162,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				{
 					//Fetch partition proxy.
 					var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
-					Dictionary<JToken, bool> keyResult = new Dictionary<JToken, bool>();
 
 					foreach (int myref in preMap[mypid])
 					{
@@ -168,12 +171,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						string valuequoted = JsonConvert.SerializeObject(obj[myref].Value,
 							new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
 
-						keyResult[obj[myref].Key] = await proxy.AddAsync(collection, keyquoted, valuequoted);
+						DmlResult tempResult = new DmlResult();
+						tempResult.Key = obj[myref].Key;
+						tempResult.PartitionId = mypid;
+						tempResult.Status = await proxy.AddAsync(collection, keyquoted, valuequoted);
+						finalResult.Add(tempResult);
 					}
-					parResult[mypid] = keyResult;
 				}
 
-				return Ok(parResult);
+				return Ok(finalResult);
 			}
 			catch (Exception e)
 			{
@@ -188,8 +194,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			try
 			{
 				Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
-
-				Dictionary<Guid, Dictionary<JToken, bool>> parResult = new Dictionary<Guid, Dictionary<JToken, bool>>();
+				List<DmlResult> finalResult = new List<DmlResult>();
 
 				for (int i = 0; i < obj.Length; i++)
 				{
@@ -211,7 +216,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				{
 					//Fetch partition proxy.
 					var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
-					Dictionary<JToken, bool> keyResult = new Dictionary<JToken, bool>();
 
 					foreach (int myref in preMap[mypid])
 					{
@@ -221,12 +225,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						string valuequoted = JsonConvert.SerializeObject(obj[myref].Value,
 							new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
 
-						keyResult[obj[myref].Key] = await proxy.UpdateAsync(collection, keyquoted, valuequoted);
+						DmlResult tempResult = new DmlResult();
+						tempResult.Key = obj[myref].Key;
+						tempResult.PartitionId = mypid;
+						tempResult.Status = await proxy.UpdateAsync(collection, keyquoted, valuequoted);
+						finalResult.Add(tempResult);
 					}
-					parResult[mypid] = keyResult;
 				}
 
-				return Ok(parResult);
+				return Ok(finalResult);
 			}
 			catch (Exception e)
 			{
@@ -255,14 +262,14 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return InternalServerError(e);
 		}
 
-		private static readonly ThreadLocal<Random> random = new ThreadLocal<Random>(() => new Random());
+		private static readonly ThreadLocal<Random> Random = new ThreadLocal<Random>(() => new Random());
 
 		private static async Task<T> GetServiceProxyAsync<T>(Uri serviceUri) where T : IService
 		{
 			using (var client = new FabricClient())
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
-				int randomindex = random.Value.Next(0, partitions.Count);
+				int randomindex = Random.Value.Next(0, partitions.Count);
 				return CreateServiceProxy<T>(serviceUri, partitions[randomindex]);
 			}
 		}
@@ -273,7 +280,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			using (var client = new FabricClient())
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
-				var matchingPartition = partitions.First(p => p.PartitionInformation.Id == partitionId);
+				var matchingPartition = partitions.FirstOrDefault(p => p.PartitionInformation.Id == partitionId);
+				if (matchingPartition == null)
+				{
+					throw new HttpException("PartitionId : " + partitionId.ToString() +"  "+ (HttpStatusCode.NotFound.ToString()));
+				}
 				return CreateServiceProxy<T>(serviceUri, matchingPartition);
 			}
 		}
@@ -284,7 +295,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
 
-				int randomindex = random.Value.Next(0, partitions.Count);
+				int randomindex = Random.Value.Next(0, partitions.Count);
 				return partitions[randomindex].PartitionInformation.Id;
 			}
 		}

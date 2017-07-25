@@ -43,7 +43,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="collection">The reliable collection to query.</param>
 		/// <param name="key">Entity key inside reliable collection.</param>
 		/// <returns>Boolean signifying the succes/failure operation.</returns>
-		Task<bool> DeleteAsync(string collection, string key);
+		Task<int> DeleteAsync(string collection, string key);
 
 		/// <summary>
 		/// Add the value given in parameter <paramref name="val"/> belonging to the key mentioned in parameter <paramref name="key"/> into the
@@ -53,7 +53,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="key">Entity key inside reliable collection.</param>
 		/// <param name="val">Value corresponding to the key in the reliable collection.</param>
 		/// <returns>Boolean signifying the succes/failure operation.</returns>
-		Task<bool> AddAsync(string collection, string key, string val);
+		Task<int> AddAsync(string collection, string key, string val);
 
 		/// <summary>
 		/// Update the value given in parameter <paramref name="val"/> belonging to the key mentioned in parameter <paramref name="key"/> into the
@@ -63,6 +63,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="key">Entity key inside reliable collection.</param>
 		/// <param name="val">Value corresponding to the key in the reliable collection.</param>
 		/// <returns>Boolean signifying the succes/failure operation.</returns>
-		Task<bool> UpdateAsync(string collection, string key, string val);
+		Task<int> UpdateAsync(string collection, string key, string val);
 	}
 }
