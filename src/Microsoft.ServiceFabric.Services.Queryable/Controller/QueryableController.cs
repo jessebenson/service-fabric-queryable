@@ -107,7 +107,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				Dictionary<Guid, List<JToken>> preMap = new Dictionary<Guid, List<JToken>>();
 
-				Dictionary<Guid, Dictionary<JToken, bool>> parResult = new Dictionary<Guid, Dictionary<JToken, bool>>();
 				List<DmlResult> finalResult = new List<DmlResult>();
 				for (int i = 0; i < obj.Length; i++)
 				{
@@ -158,8 +157,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			try
 			{
 				Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
-
-				Dictionary<Guid, Dictionary<JToken, bool>> parResult = new Dictionary<Guid, Dictionary<JToken, bool>>();
 
 				List<DmlResult> finalResult = new List<DmlResult>();
 
