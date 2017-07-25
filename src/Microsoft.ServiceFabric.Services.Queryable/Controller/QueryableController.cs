@@ -92,7 +92,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		private void AddAccessControlHeaders(HttpRequestMessage request, HttpResponseMessage response)
 		{
 			IEnumerable<string> headers;
-
 			response.Headers.Add("Access-Control-Allow-Methods", "GET");
 			if (request.Headers.TryGetValues("Origin", out headers))
 				response.Headers.Add("Access-Control-Allow-Origin", headers);
