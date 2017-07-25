@@ -14,7 +14,7 @@ namespace Basic.WebSvc.Controllers
 		///
 		/// - GET query/MyApp/MyService/$metadata
 		/// </summary>
-		[HttpGet]
+		[HttpGet, HttpOptions]
 		[Route("query/{application}/{service}/$metadata")]
 		public Task<IHttpActionResult> GetMetadata(string application, string service)
 		{
@@ -34,7 +34,7 @@ namespace Basic.WebSvc.Controllers
 		/// Get 10 items, returning only the Price and Quantity properties, sorted by Price in descending order.
 		/// - GET query/MyApp/MyService/my-dictionary?$top=10&$select=Price,Quantity&$orderby=Price desc
 		/// </summary>
-		[HttpGet]
+		[HttpGet, HttpOptions]
 		[Route("query/{application}/{service}/{collection}")]
 		public Task<IHttpActionResult> Query(string application, string service, string collection)
 		{
