@@ -1,5 +1,5 @@
-﻿using System.Threading;
-using Microsoft.ServiceFabric.Services.Runtime;
+﻿using Microsoft.ServiceFabric.Services.Runtime;
+using System.Threading;
 
 namespace Basic.ProductSvc
 {

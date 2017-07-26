@@ -7,7 +7,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	internal sealed class QueryModelCache
 	{
-		private static readonly ConcurrentDictionary<Type, ODataQueryContext> ContextCache = new ConcurrentDictionary<Type, ODataQueryContext>();
+		private static readonly ConcurrentDictionary<Type, ODataQueryContext> ContextCache =
+			new ConcurrentDictionary<Type, ODataQueryContext>();
 
 		public ODataQueryContext GetQueryContext(Type type)
 		{
@@ -16,6 +17,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 		private static ODataQueryContext CreateQueryContext(Type type)
 		{
+			//here we build schema
 			var builder = new ODataConventionModelBuilder();
 			builder.AddEntity(type);
 			var model = builder.GetEdmModel();

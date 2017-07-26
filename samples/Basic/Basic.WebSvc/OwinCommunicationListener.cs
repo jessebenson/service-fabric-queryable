@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Microsoft.Owin.Hosting;
+using Microsoft.ServiceFabric.Services.Communication.Runtime;
+using Owin;
+using System;
 using System.Fabric;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Owin.Hosting;
-using Microsoft.ServiceFabric.Services.Communication.Runtime;
-using Owin;
 
 namespace Basic.WebSvc
 {

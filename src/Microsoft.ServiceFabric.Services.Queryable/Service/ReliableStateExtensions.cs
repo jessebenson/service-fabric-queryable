@@ -1,5 +1,4 @@
-﻿using Microsoft.Data.Edm;
-using Microsoft.Data.OData;
+﻿using Microsoft.Data.OData;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Services.Client;
@@ -12,9 +11,11 @@ using System.Fabric;
 using System.Fabric.Query;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Query;
 
@@ -38,7 +39,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var entity = builder.AddEntity(queryable.Value);
 				builder.AddEntitySet(queryable.Key, entity);
 			}
-
 			var model = builder.GetEdmModel();
 
 			// Write the OData metadata document.
@@ -56,15 +56,19 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
 		/// </summary>
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
+		/// <param name="context">Stateful Service Context.</param>
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <param name="query">OData query parameters.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
-		public static async Task<IEnumerable<string>> QueryAsync(this IReliableStateManager stateManager, StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
+		public static async Task<IEnumerable<string>> QueryAsync(this IReliableStateManager stateManager,
+			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query,
+			CancellationToken cancellationToken)
 		{
 			// Query all service partitions concurrently.
 			var proxies = await GetServiceProxiesAsync<IQueryableService>(context).ConfigureAwait(false);
-			var queries = proxies.Select(p => p.QueryPartitionAsync(collection, query)).Concat(new[] { stateManager.QueryPartitionAsync(collection, query, cancellationToken) });
+			var queries = proxies.Select(p => p.QueryPartitionAsync(collection, query)).Concat(new[]
+				{stateManager.QueryPartitionAsync(collection, query, context.PartitionId, cancellationToken)});
 			var queryResults = await Task.WhenAll(queries).ConfigureAwait(false);
 			var results = queryResults.SelectMany(r => r);
 
@@ -72,41 +76,156 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			if (query.Any())
 			{
 				var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-				var valueType = reliableState.GetValueType();
-				var objects = results.Select(r => JsonConvert.DeserializeObject(r, valueType));
-				var queryResult = ApplyQuery(objects, valueType, query, aggregate: true);
+				var entityType = reliableState.GetEntityType();
+				var objects = results.Select(r => JsonConvert.DeserializeObject(r, entityType));
+				var queryResult = ApplyQuery(objects, entityType, query, aggregate: true);
 				results = queryResult.Select(JsonConvert.SerializeObject);
 			}
 
 			// Return the filtered data as json.
 			return results;
 		}
-		
+
 		/// <summary>
 		/// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
 		/// </summary>
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <param name="query">OData query parameters.</param>
+		/// <param name="partitionId">Partition id.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
-		public static async Task<IEnumerable<string>> QueryPartitionAsync(this IReliableStateManager stateManager, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
+		public static async Task<IEnumerable<string>> QueryPartitionAsync(this IReliableStateManager stateManager,
+			string collection, IEnumerable<KeyValuePair<string, string>> query, Guid partitionId,
+			CancellationToken cancellationToken)
 		{
 			// Find the reliable state.
 			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
 
 			// Get the data from the reliable state.
-			var results = await reliableState.GetEnumerable(stateManager, cancellationToken).ConfigureAwait(false);
+			var results = await reliableState.GetEnumerable(stateManager, partitionId, cancellationToken).ConfigureAwait(false);
 
 			// Filter the data.
 			if (query.Any())
 			{
-				var valueType = reliableState.GetValueType();
-				results = ApplyQuery(results, valueType, query, aggregate: false);
+				var entityType = reliableState.GetEntityType();
+				results = ApplyQuery(results, entityType, query, aggregate: false);
 			}
-
 			// Return the filtered data as json.
 			return results.Select(JsonConvert.SerializeObject);
+		}
+
+		/// <summary>
+		/// Delete from the reliable collection with the given key from the reliable state manager using the given parameters.
+		/// </summary>
+		/// <param name="stateManager">Reliable state manager for the replica.</param>
+		/// <param name="collection">Name of the reliable collection.</param>
+		/// <param name="keyJson">Entity Key.</param>
+		/// <returns>A boolean value based on the success of the operation.</returns>
+		public static async Task<int> DeleteAsync(this IReliableStateManager stateManager, string collection,
+			string keyJson)
+		{
+			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			try
+			{
+				using (ITransaction tx = stateManager.CreateTransaction())
+				{
+					var keyType = dictionary.GetKeyType();
+					var valueType = dictionary.GetValueType();
+					var key = JsonConvert.DeserializeObject(keyJson, keyType);
+					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+					var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
+					await deleteTask.ConfigureAwait(false);
+					var result = deleteTask.GetPropertyValue<object>("Result");
+					var success = result.GetPropertyValue<bool>("HasValue");
+					await tx.CommitAsync();
+
+					if (!success)
+					{
+						//throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
+						return (int)HttpStatusCode.BadRequest;
+					}
+					
+					else
+					{
+						
+						return (int)HttpStatusCode.OK;
+					}
+				
+				}
+			}
+			catch (ArgumentException)
+			{
+				//throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
+				return (int)HttpStatusCode.BadRequest;
+			}
+		}
+
+		/// <summary>
+		/// Add to the reliable collection the given key & value using the reliable state managers.
+		/// </summary>
+		/// <param name="stateManager">Reliable state manager for the replica.</param>
+		/// <param name="collection">Name of the reliable collection.</param>
+		/// <param name="keyJson">Entity Key.</param>
+		/// <param name="valJson">Value.</param>
+		/// <returns>A boolean value based on the success of the operation.</returns>
+		public static async Task<int> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
+			string valJson)
+		{
+			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			try
+			{
+				using (ITransaction tx = stateManager.CreateTransaction())
+				{
+					var keyType = dictionary.GetKeyType();
+					var valueType = dictionary.GetValueType();
+					var key = JsonConvert.DeserializeObject(keyJson, keyType);
+					var val = JsonConvert.DeserializeObject(valJson, valueType);
+
+					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+					await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType })
+						.Invoke(dictionary, new[] { tx, key, val });
+
+					await tx.CommitAsync();
+				}
+			}
+			catch (ArgumentException)
+			{
+				//throw new HttpException((int)HttpStatusCode.BadRequest, "A value with same key already exists.");
+				return (int) HttpStatusCode.BadRequest;
+			}
+			return (int)HttpStatusCode.OK;
+		}
+
+		public static async Task<int> UpdateAsync(this IReliableStateManager stateManager, string collection,
+			string keyJson, string valJson)
+		{
+			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+
+			try
+			{
+				using (ITransaction tx = stateManager.CreateTransaction())
+				{
+					var keyType = dictionary.GetKeyType();
+					var valueType = dictionary.GetValueType();
+
+					var key = JsonConvert.DeserializeObject(keyJson, keyType);
+					var val = JsonConvert.DeserializeObject(valJson, valueType);
+
+					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+
+					await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType })
+						.Invoke(dictionary, new[] { tx, key, val });
+
+					await tx.CommitAsync();
+				}
+			}
+			catch (ArgumentException)
+			{
+				//throw new HttpException((int)HttpStatusCode.BadRequest, "Updating to same value again.");
+				return (int)HttpStatusCode.BadRequest;
+			}
+			return (int) HttpStatusCode.OK;
 		}
 
 		/// <summary>
@@ -115,7 +234,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <returns>The reliable collection that supports querying.</returns>
-		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
+		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager,
+			string collection)
 		{
 			// Find the reliable state.
 			var reliableStateResult = await stateManager.TryGetAsync<IReliableState>(collection).ConfigureAwait(false);
@@ -136,7 +256,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The names and value types of the reliable collections that are queryable.</returns>
-		private static async Task<IEnumerable<KeyValuePair<string, Type>>> GetQueryableTypes(this IReliableStateManager stateManager, CancellationToken cancellationToken = default(CancellationToken))
+		private static async Task<IEnumerable<KeyValuePair<string, Type>>> GetQueryableTypes(
+			this IReliableStateManager stateManager, CancellationToken cancellationToken = default(CancellationToken))
 		{
 			var types = new Dictionary<string, Type>();
 			var enumerator = stateManager.GetAsyncEnumerator();
@@ -145,11 +266,19 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var state = enumerator.Current;
 				if (state.ImplementsGenericType(typeof(IReliableDictionary<,>)))
 				{
-					types.Add(state.Name.AbsolutePath, state.GetValueType());
+					var entityType = state.GetEntityType();
+					types.Add(state.Name.AbsolutePath, entityType);
 				}
 			}
 
 			return types;
+		}
+
+		private static Type GetEntityType(this IReliableState state)
+		{
+			var keyType = state.GetKeyType();
+			var valueType = state.GetValueType();
+			return typeof(Entity<,>).MakeGenericType(keyType, valueType);
 		}
 
 		/// <summary>
@@ -183,12 +312,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// </summary>
 		/// <param name="state">Reliable state (must implement <see cref="IReliableDictionary{TKey, TValue}"/>).</param>
 		/// <param name="stateManager">Reliable state manager, to create a transaction.</param>
+		/// <param name="partitionId">Partition id.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>All values from the reliable state in an in-memory collection.</returns>
-		private static async Task<IEnumerable<object>> GetEnumerable(this IReliableState state, IReliableStateManager stateManager, CancellationToken cancellationToken)
+		private static async Task<IEnumerable<object>> GetEnumerable(this IReliableState state,
+			IReliableStateManager stateManager, Guid partitionId, CancellationToken cancellationToken)
 		{
 			if (!state.ImplementsGenericType(typeof(IReliableDictionary<,>)))
 				throw new ArgumentException(nameof(state));
+
+			var entityType = state.GetEntityType();
 
 			var results = new List<object>();
 			using (var tx = stateManager.CreateTransaction())
@@ -205,8 +338,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				while (await asyncEnumerator.CallMethod<Task<bool>>("MoveNextAsync", cancellationToken).ConfigureAwait(false))
 				{
 					var current = asyncEnumerator.GetPropertyValue<object>("Current");
+					var key = current.GetPropertyValue<object>("Key");
 					var value = current.GetPropertyValue<object>("Value");
-					results.Add(value);
+
+					var entity = Activator.CreateInstance(entityType);
+					entity.SetPropertyValue("PartitionId", partitionId);
+					entity.SetPropertyValue("Key", key);
+					entity.SetPropertyValue("Value", value);
+
+					results.Add(entity);
 				}
 			}
 
@@ -218,16 +358,19 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			using (var client = new FabricClient())
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(context.ServiceName).ConfigureAwait(false);
-				return partitions.Where(p => p.PartitionInformation.Id != context.PartitionId).Select(p => CreateServiceProxy<T>(context.ServiceName, p));
+				return partitions.Where(p => p.PartitionInformation.Id != context.PartitionId)
+					.Select(p => CreateServiceProxy<T>(context.ServiceName, p));
 			}
 		}
 
 		private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
 		{
 			if (partition.PartitionInformation is Int64RangePartitionInformation)
-				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
+				return ServiceProxy.Create<T>(serviceUri,
+					new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
 			if (partition.PartitionInformation is NamedPartitionInformation)
-				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
+				return ServiceProxy.Create<T>(serviceUri,
+					new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
 			if (partition.PartitionInformation is SingletonPartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri);
 
@@ -242,7 +385,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="query">OData query parameters.</param>
 		/// <param name="aggregate">Indicates whether this is an aggregation or partial query.</param>
 		/// <returns>The results of applying the query to the in-memory objects.</returns>
-		private static IEnumerable<object> ApplyQuery(IEnumerable<object> data, Type type, IEnumerable<KeyValuePair<string, string>> query, bool aggregate)
+		private static IEnumerable<object> ApplyQuery(IEnumerable<object> data, Type type,
+			IEnumerable<KeyValuePair<string, string>> query, bool aggregate)
 		{
 			// Get the OData query context for this type.
 			var context = QueryCache.GetQueryContext(type);
