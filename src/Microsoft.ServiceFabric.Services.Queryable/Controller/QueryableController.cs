@@ -92,7 +92,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		private void AddAccessControlHeaders(HttpRequestMessage request, HttpResponseMessage response)
 		{
 			IEnumerable<string> headers;
-			response.Headers.Add("Access-Control-Allow-Methods", "GET");
+			//response.Headers.Add("Access-Control-Allow-Methods", "GET");
+			response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
+			
 			if (request.Headers.TryGetValues("Origin", out headers))
 				response.Headers.Add("Access-Control-Allow-Origin", headers);
 			if (request.Headers.TryGetValues("Access-Control-Request-Headers", out headers))
@@ -105,7 +107,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var serviceUri = GetServiceUri(application, service);
 			try
 			{
-				Dictionary<Guid, List<JToken>> preMap = new Dictionary<Guid, List<JToken>>();
+				string content = string.Empty;
+				if (Request.Method == HttpMethod.Delete)
+				{
+					Dictionary<Guid, List<JToken>> preMap = new Dictionary<Guid, List<JToken>>();
 
 				List<DmlResult> finalResult = new List<DmlResult>();
 				for (int i = 0; i < obj.Length; i++)
@@ -141,8 +146,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						finalResult.Add(tempResult);
 					}
 				}
-
-				return Ok(finalResult);
+					content = JsonConvert.SerializeObject(finalResult);
+				}
+				// Return response, with appropriate CORS headers.
+				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/json") };
+				AddAccessControlHeaders(Request, response);
+				return new ResponseMessageResult(response);
+				//return Ok(finalResult);
 			}
 			catch (Exception e)
 			{
@@ -156,7 +166,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var serviceUri = GetServiceUri(application, service);
 			try
 			{
-				Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
+				string content = string.Empty;
+				if (Request.Method == HttpMethod.Post)
+				{
+					Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
 
 				List<DmlResult> finalResult = new List<DmlResult>();
 
@@ -200,8 +213,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						finalResult.Add(tempResult);
 					}
 				}
+				content = JsonConvert.SerializeObject(finalResult);
+			}
+				// Return response, with appropriate CORS headers.
+			var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/json") };
+			AddAccessControlHeaders(Request, response);
+			return new ResponseMessageResult(response);
+		
+		
 
-				return Ok(finalResult);
+			//	return Ok(finalResult);
 			}
 			catch (Exception e)
 			{
@@ -215,7 +236,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var serviceUri = GetServiceUri(application, service);
 			try
 			{
-				Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
+				string content = string.Empty;
+				if (Request.Method == HttpMethod.Put)
+				{
+					Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
 				List<DmlResult> finalResult = new List<DmlResult>();
 
 				for (int i = 0; i < obj.Length; i++)
@@ -254,8 +278,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						finalResult.Add(tempResult);
 					}
 				}
-
-				return Ok(finalResult);
+					content = JsonConvert.SerializeObject(finalResult);
+				}
+				// Return response, with appropriate CORS headers.
+				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/json") };
+				AddAccessControlHeaders(Request, response);
+				return new ResponseMessageResult(response);
+				//return Ok(finalResult);
 			}
 			catch (Exception e)
 			{
