@@ -53,7 +53,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="key">Entity key inside reliable collection.</param>
 		/// <param name="val">Value corresponding to the key in the reliable collection.</param>
 		/// <returns>Boolean signifying the succes/failure operation.</returns>
-		Task<int> AddAsync(string collection, string key, string val);
+		Task<int> AddAsync(Controller.BackendViewModel[] backendObjects);
 
 		/// <summary>
 		/// Update the value given in parameter <paramref name="val"/> belonging to the key mentioned in parameter <paramref name="key"/> into the

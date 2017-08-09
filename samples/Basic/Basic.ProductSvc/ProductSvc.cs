@@ -53,9 +53,11 @@ namespace Basic.ProductSvc
 				using (var tx = StateManager.CreateTransaction())
 				{
 					var key = $"sku-{i}";
-					var value = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };					
+					var key2 = $"sku-{i}";
+					var value = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };
+					var value2 = new Product { Sku = key, Price = 30.0 + (i / 10.0), Quantity = i*2 };
 					await products.SetAsync(tx, key, value, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
-					await products2.SetAsync(tx, key, value, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
+					await products2.SetAsync(tx, key2, value2, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
 					await tx.CommitAsync().ConfigureAwait(false);
 				}
 			}

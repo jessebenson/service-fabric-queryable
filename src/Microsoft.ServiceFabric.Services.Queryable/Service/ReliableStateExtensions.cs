@@ -134,6 +134,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					var valueType = dictionary.GetValueType();
 					var key = JsonConvert.DeserializeObject(keyJson, keyType);
 					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+
 					var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
 					await deleteTask.ConfigureAwait(false);
 					var result = deleteTask.GetPropertyValue<object>("Result");
@@ -169,23 +170,48 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="keyJson">Entity Key.</param>
 		/// <param name="valJson">Value.</param>
 		/// <returns>A boolean value based on the success of the operation.</returns>
-		public static async Task<int> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
-			string valJson)
+		public static async Task<int> AddAsync(this IReliableStateManager stateManager, Controller.BackendViewModel[] backendObjects)
 		{
-			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			
 			try
 			{
 				using (ITransaction tx = stateManager.CreateTransaction())
+
+
 				{
-					var keyType = dictionary.GetKeyType();
-					var valueType = dictionary.GetValueType();
-					var key = JsonConvert.DeserializeObject(keyJson, keyType);
-					var val = JsonConvert.DeserializeObject(valJson, valueType);
+					foreach (Controller.BackendViewModel myBack in backendObjects)
+					{
+						var dictionary = await stateManager.GetQueryableState(myBack.Collection).ConfigureAwait(false);
+						var keyType = dictionary.GetKeyType();
+						var valueType = dictionary.GetValueType();
+						var key = JsonConvert.DeserializeObject(myBack.Key, keyType);
+						var val = JsonConvert.DeserializeObject(myBack.Value, valueType);
 
-					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-					await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType })
+						var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+
+						if(myBack.Operation == "Add")
+						{
+							await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType })
+							.Invoke(dictionary, new[] { tx, key, val });
+						}
+						if (myBack.Operation == "Update")
+						{
+							await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType })
 						.Invoke(dictionary, new[] { tx, key, val });
+						}
+						if (myBack.Operation == "Delete")
+						{
+							//await (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
+							var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
+							await deleteTask.ConfigureAwait(false);
+							
+							var result = deleteTask.GetPropertyValue<object>("Result");
+							var success = result.GetPropertyValue<bool>("HasValue");
+						}
 
+
+					}
+					
 					await tx.CommitAsync();
 				}
 			}

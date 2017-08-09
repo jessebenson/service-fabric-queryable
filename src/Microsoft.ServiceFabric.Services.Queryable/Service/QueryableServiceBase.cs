@@ -36,9 +36,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return StateManager.DeleteAsync(collection, key);
 		}
 
-		Task<int> IQueryableService.AddAsync(string collection, string key, string val)
+		Task<int> IQueryableService.AddAsync(Controller.BackendViewModel[] backendObjects)
 		{
-			return StateManager.AddAsync(collection, key, val);
+			return StateManager.AddAsync(backendObjects);
 		}
 
 		Task<int> IQueryableService.UpdateAsync(string collection, string key, string val)

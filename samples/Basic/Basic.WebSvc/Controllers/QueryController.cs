@@ -114,12 +114,12 @@ namespace Basic.WebSvc.Controllers
 		///}]
 		///
 		/// </summary>
-		[HttpPost]
-		[Route("query/{application}/{service}/{collection}")]
-		public Task<IHttpActionResult> Add(string application, string service, string collection,
+		[HttpPost, HttpOptions]
+		[Route("query/{application}/{service}")]
+		public Task<IHttpActionResult> Add(string application, string service,
 			[FromBody] ValueViewModel[] obj)
 		{
-			return base.AddAsync(application, service, collection, obj);
+			return base.AddAsync(application, service, obj);
 		}
 
 		/// <summary>

@@ -160,7 +160,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		protected async Task<IHttpActionResult> AddAsync(string application, string service, string collection,
+		protected async Task<IHttpActionResult> AddAsync(string application, string service,
 			ValueViewModel[] obj)
 		{
 			var serviceUri = GetServiceUri(application, service);
@@ -172,8 +172,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
 
 				List<DmlResult> finalResult = new List<DmlResult>();
+				List<BackendViewModel> backendObjects = new List<BackendViewModel>();
 
-				for (int i = 0; i < obj.Length; i++)
+					for (int i = 0; i < obj.Length; i++)
 				{
 					List<int> templist = new List<int>();
 					if (obj[i].PartitionId == Guid.Empty)
@@ -200,19 +201,28 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 					foreach (int myref in preMap[mypid])
 					{
-						string keyquoted = JsonConvert.SerializeObject(obj[myref].Key,
-							new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+						
+							BackendViewModel backendObject = new BackendViewModel();
 
-						string valuequoted = JsonConvert.SerializeObject(obj[myref].Value,
-							new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+							backendObject.Key = JsonConvert.SerializeObject(obj[myref].Key,
+								new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
 
-						DmlResult tempResult = new DmlResult();
+							backendObject.Value = JsonConvert.SerializeObject(obj[myref].Value,
+								new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
+							backendObject.Operation = obj[myref].Operation;
+							backendObject.Collection = obj[myref].Collection;
+
+							backendObjects.Add(backendObject);
+
+							DmlResult tempResult = new DmlResult();
 						tempResult.Key = obj[myref].Key;
-						tempResult.PartitionId = mypid;
-						tempResult.Status = await proxy.AddAsync(collection, keyquoted, valuequoted);
+							tempResult.collection= obj[myref].Collection;
+							tempResult.PartitionId = mypid;
+							tempResult.Status = 200;
 						finalResult.Add(tempResult);
 					}
-				}
+						await proxy.AddAsync(backendObjects.ToArray());
+					}
 				content = JsonConvert.SerializeObject(finalResult);
 			}
 				// Return response, with appropriate CORS headers.

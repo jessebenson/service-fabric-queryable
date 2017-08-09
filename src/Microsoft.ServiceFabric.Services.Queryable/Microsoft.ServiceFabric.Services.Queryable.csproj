@@ -119,6 +119,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Controller\BackendViewModel.cs" />
     <Compile Include="Controller\ValueViewModel.cs" />
     <Compile Include="Controller\QueryableController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
