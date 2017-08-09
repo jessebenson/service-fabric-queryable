@@ -42,44 +42,6 @@ namespace Basic.WebSvc.Controllers
 		}
 
 		/// <summary>
-		/// Deletes appropriate key & corresponding value from the given reliable collection in the queryable service.
-		/// SINGLE DELETE:
-		/// - DELETE /query/BasicApp/ProductSvc/products and in Body provide a Json:
-		/// In Body: [{
-		///"Key": "sku-218",
-		/// "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
-		///}]
-		/// Record belonging to the key provided in the JSON Body of HTTP Request is located in the given partitionID and removed from it.
-		/// If the record doesnt exist, then a bad request errorcode is sent back.
-		///
-		/// BATCH DELETE (Provide an Array of keys in JSON format inside body of HTTP Delete request to delete them all (with kindness ;) ).
-		/// -DELETE /query/BasicApp/ProductSvc/products
-		/// In Body: [{
-		///"Key": "sku-218",
-		/// "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
-		///},{
-		///"Key": "sku-217",
-		/// "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
-		///}]
-		///
-		/// DELETE A Key from All Partitions :
-		/// -DELETE /query/BasicApp/ProductSvc/products
-		/// In Body :
-		/// [{
-		///"Key": "sku-218"
-		///}]
-		///
-		/// </summary>
-
-		[HttpDelete]
-		[Route("query/{application}/{service}/{collection}")]
-		public Task<IHttpActionResult> Delete(string application, string service, string collection,
-			[FromBody] ValueViewModel[] obj)
-		{
-			return base.DeleteAsync(application, service, collection, obj);
-		}
-
-		/// <summary>
 		/// Adds appropriate key and corresponding value to the given reliable collection in the queryable service. If it is already existing a bad request exception is raised.
 		/// SINGLE ADD:
 		/// - POST /query/BasicApp/ProductSvc/products and in Body provide a Json:
@@ -116,59 +78,10 @@ namespace Basic.WebSvc.Controllers
 		/// </summary>
 		[HttpPost, HttpOptions]
 		[Route("query/{application}/{service}")]
-		public Task<IHttpActionResult> Add(string application, string service,
+		public Task<IHttpActionResult> Dml(string application, string service,
 			[FromBody] ValueViewModel[] obj)
 		{
-			return base.AddAsync(application, service, obj);
-		}
-
-		/// <summary>
-		/// Updates appropriate key & corresponding value to the given reliable collection in the queryable service.
-		/// SINGLE UPDATE:
-		/// - PUT /query/BasicApp/ProductSvc/products and in Body provide a Json:
-		/// In Body: [{
-		///	        "Key": "sku-217",
-		///	        "Value":  {
-		///	            "Sku": "sku-217",
-		///	            "Price": 11.95,
-		///	            "Quantity":40
-		///	        },
-		///	        "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
-		///	    }
-		///	    ]
-		/// Record belonging to the key provided in the JSON Body of HTTP PUT Request is loacted in the partition ID mentioned & is updated with the new value, if its not existing already then its added..
-		/// Incase Partition ID is not mentioned, Records with matching key from all partitions are located & updated with the new value.
-		///
-		///
-		/// BATCH UPDATE (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP PUT request to update all the keys with new values.).
-		/// -PUT /query/BasicApp/ProductSvc/products
-		/// In Body: [{
-		///	        "Key": "sku-217",
-		///	        "Value":  {
-		///	            "Sku": "sku-217",
-		///	            "Price": 11.95,
-		///	            "Quantity":40
-		///	        },
-		///	        "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
-		///	    },
-		///     {
-		///	        "Key": "sku-218",
-		///	        "Value":  {
-		///	            "Sku": "sku-218",
-		///	            "Price": 11.85,
-		///	            "Quantity":41
-		///	        },
-		///	        "PartitionId": "a76fd004-37aa-4ea6-94a0-3013d8956fef"
-		///	    }]
-		///
-		///
-		/// </summary>
-		[HttpPut]
-		[Route("query/{application}/{service}/{collection}")]
-		public Task<IHttpActionResult> Update(string application, string service, string collection,
-			[FromBody] ValueViewModel[] obj)
-		{
-			return base.UpdateAsync(application, service, collection, obj);
+			return base.DmlAsync(application, service, obj);
 		}
 	}
 }

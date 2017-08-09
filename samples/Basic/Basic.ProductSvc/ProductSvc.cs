@@ -45,7 +45,7 @@ namespace Basic.ProductSvc
 		protected override async Task RunAsync(CancellationToken cancellationToken)
 		{
 			var products = await GetProductsStateAsync();
-			var products2= await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products2");
+			var products2 = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products2");
 			// Add some initial products.
 			int partitionIndex = await GetPartitionIndex().ConfigureAwait(false);
 			for (int i = 0; i < 10; i++)
@@ -55,7 +55,7 @@ namespace Basic.ProductSvc
 					var key = $"sku-{i}";
 					var key2 = $"sku-{i}";
 					var value = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };
-					var value2 = new Product { Sku = key, Price = 30.0 + (i / 10.0), Quantity = i*2 };
+					var value2 = new Product { Sku = key, Price = 30.0 + (i / 10.0), Quantity = i * 2 };
 					await products.SetAsync(tx, key, value, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
 					await products2.SetAsync(tx, key2, value2, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
 					await tx.CommitAsync().ConfigureAwait(false);
