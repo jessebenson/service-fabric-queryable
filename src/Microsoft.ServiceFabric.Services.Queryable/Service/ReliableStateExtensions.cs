@@ -178,6 +178,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 								{
 
 									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+									return listOfStatusCodes;
 								}
 								else
 								{
@@ -187,6 +188,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 							catch (ArgumentException)
 							{
 								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+								return listOfStatusCodes;
 							}
 						}
 					}
