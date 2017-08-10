@@ -44,6 +44,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="key">Entity key inside reliable collection.</param>
 		/// <param name="val">Value corresponding to the key in the reliable collection.</param>
 		/// <returns>Boolean signifying the succes/failure operation.</returns>
-		Task<int> DmlAsync(Controller.BackendViewModel[] backendObjects);
+		Task<List<int>> DmlAsync(Controller.BackendViewModel[] backendObjects);
 	}
 }

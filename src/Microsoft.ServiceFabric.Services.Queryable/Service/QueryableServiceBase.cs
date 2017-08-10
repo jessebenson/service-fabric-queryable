@@ -31,7 +31,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return StateManager.QueryPartitionAsync(collection, query, this.Partition.PartitionInfo.Id, CancellationToken.None);
 		}
 
-		Task<int> IQueryableService.DmlAsync(Controller.BackendViewModel[] backendObjects)
+		Task<List<int>> IQueryableService.DmlAsync(Controller.BackendViewModel[] backendObjects)
 		{
 			return StateManager.DmlAsync(backendObjects);
 		}

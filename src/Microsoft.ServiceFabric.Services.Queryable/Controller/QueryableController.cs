@@ -114,7 +114,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 					List<DmlResult> finalResult = new List<DmlResult>();
 					List<BackendViewModel> backendObjects = new List<BackendViewModel>();
-
+					
 					for (int i = 0; i < obj.Length; i++)
 					{
 						List<int> templist = new List<int>();
@@ -139,7 +139,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					{
 						//Fetch partition proxy.
 						var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
-
+						
+						var listOfStatusCodes = new List<int>();
 						foreach (int myref in preMap[mypid])
 						{
 							BackendViewModel backendObject = new BackendViewModel();
@@ -158,10 +159,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 							tempResult.Key = obj[myref].Key;
 							tempResult.collection = obj[myref].Collection;
 							tempResult.PartitionId = mypid;
-							tempResult.Status = 200;
+							//tempResult.Status = 200;
 							finalResult.Add(tempResult);
 						}
-						await proxy.DmlAsync(backendObjects.ToArray());
+						listOfStatusCodes= await proxy.DmlAsync(backendObjects.ToArray());
 					}
 					content = JsonConvert.SerializeObject(finalResult);
 				}

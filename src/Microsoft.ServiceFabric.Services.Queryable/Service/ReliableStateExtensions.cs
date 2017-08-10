@@ -122,13 +122,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="keyJson">Entity Key.</param>
 		/// <param name="valJson">Value.</param>
 		/// <returns>A boolean value based on the success of the operation.</returns>
-		public static async Task<int> DmlAsync(this IReliableStateManager stateManager, Controller.BackendViewModel[] backendObjects)
+		public static async Task<List<int>> DmlAsync(this IReliableStateManager stateManager, Controller.BackendViewModel[] backendObjects)
 		{
+			var listOfStatusCodes = new List<int>();
 			try
 			{
 				using (ITransaction tx = stateManager.CreateTransaction())
 
 				{
+
 					foreach (Controller.BackendViewModel myBack in backendObjects)
 					{
 						var dictionary = await stateManager.GetQueryableState(myBack.Collection).ConfigureAwait(false);
@@ -141,39 +143,51 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 						if (myBack.Operation == "Add")
 						{
-							await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType })
-							.Invoke(dictionary, new[] { tx, key, val });
+							try
+							{
+								await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType })
+								.Invoke(dictionary, new[] { tx, key, val });
+							}
+							catch (ArgumentException)
+							{
+								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+								return listOfStatusCodes;
+							}
+							listOfStatusCodes.Add((int)HttpStatusCode.OK);
 						}
 						if (myBack.Operation == "Update")
 						{
+
 							await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType })
-						.Invoke(dictionary, new[] { tx, key, val });
+					.Invoke(dictionary, new[] { tx, key, val });
+
+
+							listOfStatusCodes.Add((int)HttpStatusCode.OK);
 						}
 						if (myBack.Operation == "Delete")
 						{
-							await (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
-							//var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
-							//await deleteTask.ConfigureAwait(false);
+							try
+							{
+								//await (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
+								var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
+								await deleteTask.ConfigureAwait(false);
 
-							//var result = deleteTask.GetPropertyValue<object>("Result");
-							//var success = result.GetPropertyValue<bool>("HasValue");
+								var result = deleteTask.GetPropertyValue<object>("Result");
+								var success = result.GetPropertyValue<bool>("HasValue");
+								if (!success)
+								{
 
-							/*if (!success)
-						{
-							//throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
-							return (int)HttpStatusCode.BadRequest;
-						}
-						else
-						{
-							return (int)HttpStatusCode.OK;
-						}
-					}
-				}
-				catch (ArgumentException)
-				{
-					//throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
-					return (int)HttpStatusCode.BadRequest;
-				}*/
+									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+								}
+								else
+								{
+									listOfStatusCodes.Add((int)HttpStatusCode.OK);
+								}
+							}
+							catch (ArgumentException)
+							{
+								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+							}
 						}
 					}
 
@@ -183,9 +197,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			catch (ArgumentException)
 			{
 				//throw new HttpException((int)HttpStatusCode.BadRequest, "A value with same key already exists.");
-				return (int)HttpStatusCode.BadRequest;
+				//return (int)HttpStatusCode.BadRequest;
+				listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
 			}
-			return (int)HttpStatusCode.OK;
+			return listOfStatusCodes;
+			//return (int)HttpStatusCode.OK;
 		}
 
 		/// <summary>
