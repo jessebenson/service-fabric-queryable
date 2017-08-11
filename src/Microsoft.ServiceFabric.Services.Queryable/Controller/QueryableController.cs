@@ -111,10 +111,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				if (Request.Method == HttpMethod.Post)
 				{
 					Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
-
 					List<DmlResult> finalResult = new List<DmlResult>();
-					
-					
+
 					for (int i = 0; i < obj.Length; i++)
 					{
 						List<int> templist = new List<int>();
@@ -140,7 +138,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						//Fetch partition proxy.
 						var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
 						List<BackendViewModel> backendObjects = new List<BackendViewModel>();
-						
+
 						var listOfStatusCodes = new List<int>();
 						foreach (int myref in preMap[mypid])
 						{
@@ -160,20 +158,17 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 							tempResult.Key = obj[myref].Key;
 							tempResult.collection = obj[myref].Collection;
 							tempResult.PartitionId = mypid;
-							
+
 							finalResult.Add(tempResult);
 						}
-						listOfStatusCodes= await proxy.DmlAsync(backendObjects.ToArray());
-						
-						
+						listOfStatusCodes = await proxy.DmlAsync(backendObjects.ToArray());
 						foreach (var row in listOfStatusCodes)
 						{
-							if(p< finalResult.Count)
+							if (p < finalResult.Count)
 							{
 								finalResult[p].Status = row; ;
-							p++;
+								p++;
 							}
-
 						}
 					}
 					content = JsonConvert.SerializeObject(finalResult);
@@ -182,7 +177,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/json") };
 				AddAccessControlHeaders(Request, response);
 				return new ResponseMessageResult(response);
-				
 			}
 			catch (Exception e)
 			{

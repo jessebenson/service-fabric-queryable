@@ -42,44 +42,50 @@ namespace Basic.WebSvc.Controllers
 		}
 
 		/// <summary>
-		/// Adds appropriate key and corresponding value to the given reliable collection in the queryable service. If it is already existing a bad request exception is raised.
-		/// SINGLE ADD:
-		/// - POST /query/BasicApp/ProductSvc/products and in Body provide a Json:
+		/// Does all listed Dml operations in a single transaction. Atomic in nature.
+		/// Sample:
+		/// - POST /query/BasicApp/ProductSvc and in Body provide a Json Array:
 		/// In Body: [{
-		///	        "Key": "sku-218",
-		///	        "Value":  {
-		///	            "Sku": "sku-218",
-		///	            "Price": 10.95,
-		///	            "Quantity":46
-		///	        },
-		///	        "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
-		///	    }
+		//	"Operation":"Update",
+		//	"Collection":"products",
+		//            "PartitionId": "086da0f0-1382-4314-b1f5-d0a72863ffb1",
+		//            "Key": "sku-1",
+		//            "Value": {
+		//                "Sku": "sku-UPDATE",
+		//                "Price": 110,
+		//                "Quantity": 9999
+		//            }
+		//},
+		//{
+		//	"Operation":"Delete",
+		//	"Collection":"products2",
+		//	"PartitionId": "8cb6e02d-c7ba-4d72-a329-ffb4d2cc4f7a",
+		//            "Key": "sku-0",
+		//            "Value": {
+		//                "Sku": "sku-0",
+		//                "Price": 10,
+		//                "Quantity": 0
+		//            },
+		//	},
+		//{
+		//	"Operation":"Add",
+		//	"Collection":"products",
+		//	"PartitionId": "8cb6e02d-c7ba-4d72-a329-ffb4d2cc4f7a",
+		//            "Key": "sku-new",
+		//            "Value": {
+		//                "Sku": "sku-0",
+		//                "Price": 10,
+		//                "Quantity": 0
+		//            }
+		//}
 		///	    ]
 		/// Record belonging to the key provided in the JSON Body of HTTP POST Request is added to a partition ID mentioned, if its not existing already.
 		/// Incase Partition ID is not mentioned, Record is added to random partition ID. If it is already existing a bad request exception is raised.
-		///
-		/// BATCH ADD (Provide an Array of keys & values with optional partitionID in JSON format inside body of HTTP POST request to add them all.).
-		/// -POST /query/BasicApp/ProductSvc/products
-		/// In Body: [{
-		///             "Key": "sku-218",
-		///             "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
-		///           },{
-		///             "Key": "sku-217",
-		///             "PartitionId": "946fd004-37aa-4ea6-94a0-3013d8956fef"
-		///          }]
-		///
-		/// ADD a Key & Value to a random Partition:
-		/// -POST /query/BasicApp/ProductSvc/products
-		/// In Body :
-		/// [{
-		///"Key": "sku-218"
-		///}]
-		///
 		/// </summary>
 		[HttpPost, HttpOptions]
 		[Route("query/{application}/{service}")]
 		public Task<IHttpActionResult> Dml(string application, string service,
-			[FromBody] ValueViewModel[] obj)
+				[FromBody] ValueViewModel[] obj)
 		{
 			return base.DmlAsync(application, service, obj);
 		}

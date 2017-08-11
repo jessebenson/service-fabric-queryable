@@ -118,19 +118,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// Add to the reliable collection the given key & value using the reliable state managers.
 		/// </summary>
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
-		/// <param name="collection">Name of the reliable collection.</param>
-		/// <param name="keyJson">Entity Key.</param>
-		/// <param name="valJson">Value.</param>
-		/// <returns>A boolean value based on the success of the operation.</returns>
+		/// <param name="backendObjects">Array of objects of class BackendViewModel involving Operation,Collection,Key & Value.</param>
+		/// <returns>A list of statuscodes indicating success/failure of the operations.</returns>
 		public static async Task<List<int>> DmlAsync(this IReliableStateManager stateManager, Controller.BackendViewModel[] backendObjects)
 		{
 			var listOfStatusCodes = new List<int>();
 			try
 			{
 				using (ITransaction tx = stateManager.CreateTransaction())
-
 				{
-
 					foreach (Controller.BackendViewModel myBack in backendObjects)
 					{
 						var dictionary = await stateManager.GetQueryableState(myBack.Collection).ConfigureAwait(false);
@@ -138,15 +134,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						var valueType = dictionary.GetValueType();
 						var key = JsonConvert.DeserializeObject(myBack.Key, keyType);
 						var val = JsonConvert.DeserializeObject(myBack.Value, valueType);
-
 						var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-
 						if (myBack.Operation == "Add")
 						{
 							try
 							{
-								await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType })
-								.Invoke(dictionary, new[] { tx, key, val });
+								await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, val });
 							}
 							catch (ArgumentException)
 							{
@@ -157,26 +150,19 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						}
 						if (myBack.Operation == "Update")
 						{
-
-							await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType })
-					.Invoke(dictionary, new[] { tx, key, val });
-
-
+							await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, val });
 							listOfStatusCodes.Add((int)HttpStatusCode.OK);
 						}
 						if (myBack.Operation == "Delete")
 						{
 							try
 							{
-								//await (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
 								var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
 								await deleteTask.ConfigureAwait(false);
-
 								var result = deleteTask.GetPropertyValue<object>("Result");
 								var success = result.GetPropertyValue<bool>("HasValue");
 								if (!success)
 								{
-
 									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
 									return listOfStatusCodes;
 								}
@@ -192,18 +178,14 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 							}
 						}
 					}
-
 					await tx.CommitAsync();
 				}
 			}
 			catch (ArgumentException)
 			{
-				//throw new HttpException((int)HttpStatusCode.BadRequest, "A value with same key already exists.");
-				//return (int)HttpStatusCode.BadRequest;
 				listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
 			}
 			return listOfStatusCodes;
-			//return (int)HttpStatusCode.OK;
 		}
 
 		/// <summary>

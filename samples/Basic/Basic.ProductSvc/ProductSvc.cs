@@ -46,7 +46,7 @@ namespace Basic.ProductSvc
 		{
 			var products = await GetProductsStateAsync();
 			var products2 = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products2");
-			// Add some initial products.
+
 			int partitionIndex = await GetPartitionIndex().ConfigureAwait(false);
 			for (int i = 0; i < 10; i++)
 			{

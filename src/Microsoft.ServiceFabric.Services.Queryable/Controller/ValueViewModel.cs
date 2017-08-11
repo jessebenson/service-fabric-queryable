@@ -3,8 +3,6 @@ using System;
 
 namespace Microsoft.ServiceFabric.Services.Queryable.Controller
 {
-	public enum Operation { Add, Update, Delete };
-
 	public class ValueViewModel
 	{
 		public string Operation { get; set; }
