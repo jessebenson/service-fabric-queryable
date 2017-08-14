@@ -22,6 +22,20 @@ namespace Basic.WebSvc.Controllers
 		}
 
 		/// <summary>
+		/// Returns OData metadata about the queryable reliable collections
+		/// and types in the application/service/Specific Partition Id.  If the service name
+		/// is 'fabric:/MyApp/MyService', & PartitionId is MyPid then the HTTP Uri should be formatted as:
+		///
+		/// - GET query/MyApp/MyService/MyPid/$metadata
+		/// </summary>
+		[HttpGet, HttpOptions]
+		[Route("query/{application}/{service}/{partitionId}/$metadata")]
+		public Task<IHttpActionResult> GetPartitionMetadata(string application, string service, string partitionId)
+		{
+			return GetPartitionMetadataAsync(application, service, partitionId);
+		}
+
+		/// <summary>
 		/// Queries the given reliable collection in the queryable service
 		/// using the OData query language. Example queries:
 		///
@@ -39,6 +53,26 @@ namespace Basic.WebSvc.Controllers
 		public Task<IHttpActionResult> Query(string application, string service, string collection)
 		{
 			return QueryAsync(application, service, collection);
+		}
+
+		/// <summary>
+		/// Queries the given reliable collection in the queryable service for the specific partitionId
+		/// using the OData query language. Example queries:
+		///
+		/// Get 10 items from the reliable dictionary named 'my-dictionary' in the service named 'fabric:/MyApp/MyService' with PartitionId as MyPid.
+		/// - GET query/MyApp/MyService/MyPid/my-dictionary?$top=10
+		///
+		/// Get 10 items with Quantity between 2 and 4, inclusively.
+		/// - GET query/MyApp/MyService/MyPid/my-dictionary?$top=10&$filter=Quantity ge 2 and Quantity le 4
+		///
+		/// Get 10 items, returning only the Price and Quantity properties, sorted by Price in descending order.
+		/// - GET query/MyApp/MyService/MyPid/my-dictionary?$top=10&$select=Price,Quantity&$orderby=Price desc
+		/// </summary>
+		[HttpGet, HttpOptions]
+		[Route("query/{application}/{service}/{partitionId}/{collection}")]
+		public Task<IHttpActionResult> QueryPartition(string application, string service, string partitionId, string collection)
+		{
+			return QuerySpecificPartitionAsync(application, service, partitionId, collection);
 		}
 
 		/// <summary>

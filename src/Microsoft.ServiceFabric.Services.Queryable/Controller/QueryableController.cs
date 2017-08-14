@@ -53,6 +53,36 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
+		protected async Task<IHttpActionResult> GetPartitionMetadataAsync(string application, string service, string partitionId)
+		{
+			var serviceUri = GetServiceUri(application, service);
+
+			try
+			{
+				string content = string.Empty;
+				if (Request.Method == HttpMethod.Get)
+				{
+					var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, System.Guid.Parse(partitionId)).ConfigureAwait(false);
+					var metadata = await proxy.GetMetadataAsync().ConfigureAwait(false);
+
+					// Parse the metadata as xml.
+					XmlDocument xml = new XmlDocument();
+					xml.LoadXml(metadata);
+					// Return xml response.
+					content = xml.InnerXml;
+				}
+				// Return response, with appropriate CORS headers.
+				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/xml") };
+				AddAccessControlHeaders(Request, response);
+
+				return new ResponseMessageResult(response);
+			}
+			catch (Exception e)
+			{
+				return HandleException(e, serviceUri);
+			}
+		}
+
 		protected async Task<IHttpActionResult> QueryAsync(string application, string service, string collection)
 		{
 			var serviceUri = GetServiceUri(application, service);
@@ -67,6 +97,43 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					// Query one service partition, allowing the partition to do the distributed query.
 					var proxy = await GetServiceProxyAsync<IQueryableService>(serviceUri).ConfigureAwait(false);
 					var results = await proxy.QueryAsync(collection, query).ConfigureAwait(false);
+
+					// Construct the final, aggregated result.
+					var result = new ODataResult
+					{
+						ODataMetadata = "",
+						Value = results.Select(JsonConvert.DeserializeObject<JObject>),
+					};
+
+					// Return json response.
+					content = JsonConvert.SerializeObject(result);
+				}
+				// Return response, with appropriate CORS headers.
+				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/json") };
+				AddAccessControlHeaders(Request, response);
+				return new ResponseMessageResult(response);
+			}
+			catch (Exception e)
+			{
+				return HandleException(e, serviceUri);
+			}
+		}
+
+		protected async Task<IHttpActionResult> QuerySpecificPartitionAsync(string application, string service, string partitionId, string collection)
+		{
+			var serviceUri = GetServiceUri(application, service);
+
+			try
+			{
+				string content = string.Empty;
+				if (Request.Method == HttpMethod.Get)
+				{
+					var query = Request.GetQueryNameValuePairs();
+
+					// Query one specific service partittion.
+
+					var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, System.Guid.Parse(partitionId)).ConfigureAwait(false);
+					var results = await proxy.QueryPartitionAsync(collection, query);
 
 					// Construct the final, aggregated result.
 					var result = new ODataResult

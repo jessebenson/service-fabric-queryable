@@ -27,7 +27,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			IEnumerable<KeyValuePair<string, string>> query)
 		{
 			return StateManager.QueryAsync(Context, collection, query, CancellationToken.None);
-			//this.Partition.PartitionInfo.Id
 		}
 
 		Task<IEnumerable<string>> IQueryableService.QueryPartitionAsync(string collection,
