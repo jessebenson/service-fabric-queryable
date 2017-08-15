@@ -37,32 +37,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		Task<IEnumerable<string>> QueryPartitionAsync(string collection, IEnumerable<KeyValuePair<string, string>> query);
 
 		/// <summary>
-		/// Delete the value belonging to the key mentioned in parameter <paramref name="key"/> against
-		/// the reliable collection with the name <paramref name="collection"/>.
+		/// Perform the Dml Operations given in  <paramref name="backendObjects"/>
 		/// </summary>
-		/// <param name="collection">The reliable collection to query.</param>
-		/// <param name="key">Entity key inside reliable collection.</param>
-		/// <returns>Boolean signifying the succes/failure operation.</returns>
-		Task<int> DeleteAsync(string collection, string key);
-
-		/// <summary>
-		/// Add the value given in parameter <paramref name="val"/> belonging to the key mentioned in parameter <paramref name="key"/> into the
-		/// the reliable collection with the name <paramref name="collection"/>.
-		/// </summary>
-		/// <param name="collection">The reliable collection to query.</param>
-		/// <param name="key">Entity key inside reliable collection.</param>
-		/// <param name="val">Value corresponding to the key in the reliable collection.</param>
-		/// <returns>Boolean signifying the succes/failure operation.</returns>
-		Task<int> AddAsync(string collection, string key, string val);
-
-		/// <summary>
-		/// Update the value given in parameter <paramref name="val"/> belonging to the key mentioned in parameter <paramref name="key"/> into the
-		/// the reliable collection with the name <paramref name="collection"/>.
-		/// </summary>
-		/// <param name="collection">The reliable collection to query.</param>
-		/// <param name="key">Entity key inside reliable collection.</param>
-		/// <param name="val">Value corresponding to the key in the reliable collection.</param>
-		/// <returns>Boolean signifying the succes/failure operation.</returns>
-		Task<int> UpdateAsync(string collection, string key, string val);
+		/// <param name="backendObjects">Array of objects of class BackendViewModel involving Operation,Collection,Key & Value.</param>
+		/// <returns>A list of statuscodes indicating success/failure of the operations.</returns>
+		Task<List<int>> DmlAsync(Controller.BackendViewModel[] backendObjects);
 	}
 }

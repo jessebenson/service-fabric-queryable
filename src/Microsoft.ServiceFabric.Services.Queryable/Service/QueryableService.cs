@@ -27,7 +27,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			IEnumerable<KeyValuePair<string, string>> query)
 		{
 			return StateManager.QueryAsync(Context, collection, query, CancellationToken.None);
-			//this.Partition.PartitionInfo.Id
 		}
 
 		Task<IEnumerable<string>> IQueryableService.QueryPartitionAsync(string collection,
@@ -36,19 +35,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return StateManager.QueryPartitionAsync(collection, query, this.Partition.PartitionInfo.Id, CancellationToken.None);
 		}
 
-		Task<int> IQueryableService.DeleteAsync(string collection, string key)
+		Task<List<int>> IQueryableService.DmlAsync(Controller.BackendViewModel[] backendObjects)
 		{
-			return StateManager.DeleteAsync(collection, key);
-		}
-
-		Task<int> IQueryableService.AddAsync(string collection, string key, string val)
-		{
-			return StateManager.AddAsync(collection, key, val);
-		}
-
-		Task<int> IQueryableService.UpdateAsync(string collection, string key, string val)
-		{
-			return StateManager.UpdateAsync(collection, key, val);
+			return StateManager.DmlAsync(backendObjects);
 		}
 	}
 }

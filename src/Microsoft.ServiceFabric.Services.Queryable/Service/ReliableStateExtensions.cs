@@ -15,7 +15,6 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Query;
 
@@ -116,116 +115,77 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		}
 
 		/// <summary>
-		/// Delete from the reliable collection with the given key from the reliable state manager using the given parameters.
-		/// </summary>
-		/// <param name="stateManager">Reliable state manager for the replica.</param>
-		/// <param name="collection">Name of the reliable collection.</param>
-		/// <param name="keyJson">Entity Key.</param>
-		/// <returns>A boolean value based on the success of the operation.</returns>
-		public static async Task<int> DeleteAsync(this IReliableStateManager stateManager, string collection,
-			string keyJson)
-		{
-			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-			try
-			{
-				using (ITransaction tx = stateManager.CreateTransaction())
-				{
-					var keyType = dictionary.GetKeyType();
-					var valueType = dictionary.GetValueType();
-					var key = JsonConvert.DeserializeObject(keyJson, keyType);
-					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-					var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
-					await deleteTask.ConfigureAwait(false);
-					var result = deleteTask.GetPropertyValue<object>("Result");
-					var success = result.GetPropertyValue<bool>("HasValue");
-					await tx.CommitAsync();
-
-					if (!success)
-					{
-						//throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
-						return (int)HttpStatusCode.BadRequest;
-					}
-					
-					else
-					{
-						
-						return (int)HttpStatusCode.OK;
-					}
-				
-				}
-			}
-			catch (ArgumentException)
-			{
-				//throw new HttpException((int)HttpStatusCode.BadRequest, $"A value with given key:{keyJson} does not exist.");
-				return (int)HttpStatusCode.BadRequest;
-			}
-		}
-
-		/// <summary>
 		/// Add to the reliable collection the given key & value using the reliable state managers.
 		/// </summary>
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
-		/// <param name="collection">Name of the reliable collection.</param>
-		/// <param name="keyJson">Entity Key.</param>
-		/// <param name="valJson">Value.</param>
-		/// <returns>A boolean value based on the success of the operation.</returns>
-		public static async Task<int> AddAsync(this IReliableStateManager stateManager, string collection, string keyJson,
-			string valJson)
+		/// <param name="backendObjects">Array of objects of class BackendViewModel involving Operation,Collection,Key & Value.</param>
+		/// <returns>A list of statuscodes indicating success/failure of the operations.</returns>
+		public static async Task<List<int>> DmlAsync(this IReliableStateManager stateManager, Controller.BackendViewModel[] backendObjects)
 		{
-			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			var listOfStatusCodes = new List<int>();
 			try
 			{
 				using (ITransaction tx = stateManager.CreateTransaction())
 				{
-					var keyType = dictionary.GetKeyType();
-					var valueType = dictionary.GetValueType();
-					var key = JsonConvert.DeserializeObject(keyJson, keyType);
-					var val = JsonConvert.DeserializeObject(valJson, valueType);
-
-					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-					await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType })
-						.Invoke(dictionary, new[] { tx, key, val });
-
+					foreach (Controller.BackendViewModel myBack in backendObjects)
+					{
+						var dictionary = await stateManager.GetQueryableState(myBack.Collection).ConfigureAwait(false);
+						var keyType = dictionary.GetKeyType();
+						var valueType = dictionary.GetValueType();
+						var key = JsonConvert.DeserializeObject(myBack.Key, keyType);
+						var val = JsonConvert.DeserializeObject(myBack.Value, valueType);
+						var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+						if (myBack.Operation == Controller.Operation.Add)
+						{
+							try
+							{
+								await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, val });
+							}
+							catch (ArgumentException)
+							{
+								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+								return listOfStatusCodes;
+							}
+							listOfStatusCodes.Add((int)HttpStatusCode.OK);
+						}
+						if (myBack.Operation == Controller.Operation.Update)
+						{
+							await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, val });
+							listOfStatusCodes.Add((int)HttpStatusCode.OK);
+						}
+						if (myBack.Operation == Controller.Operation.Delete)
+						{
+							try
+							{
+								var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
+								await deleteTask.ConfigureAwait(false);
+								var result = deleteTask.GetPropertyValue<object>("Result");
+								var success = result.GetPropertyValue<bool>("HasValue");
+								if (!success)
+								{
+									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+									return listOfStatusCodes;
+								}
+								else
+								{
+									listOfStatusCodes.Add((int)HttpStatusCode.OK);
+								}
+							}
+							catch (ArgumentException)
+							{
+								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+								return listOfStatusCodes;
+							}
+						}
+					}
 					await tx.CommitAsync();
 				}
 			}
 			catch (ArgumentException)
 			{
-				//throw new HttpException((int)HttpStatusCode.BadRequest, "A value with same key already exists.");
-				return (int) HttpStatusCode.BadRequest;
+				listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
 			}
-			return (int)HttpStatusCode.OK;
-		}
-
-		public static async Task<int> UpdateAsync(this IReliableStateManager stateManager, string collection,
-			string keyJson, string valJson)
-		{
-			var dictionary = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-
-			try
-			{
-				using (ITransaction tx = stateManager.CreateTransaction())
-				{
-					var keyType = dictionary.GetKeyType();
-					var valueType = dictionary.GetValueType();
-
-					var key = JsonConvert.DeserializeObject(keyJson, keyType);
-					var val = JsonConvert.DeserializeObject(valJson, valueType);
-
-					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-
-					await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType })
-						.Invoke(dictionary, new[] { tx, key, val });
-
-					await tx.CommitAsync();
-				}
-			}
-			catch (ArgumentException)
-			{
-				//throw new HttpException((int)HttpStatusCode.BadRequest, "Updating to same value again.");
-				return (int)HttpStatusCode.BadRequest;
-			}
-			return (int) HttpStatusCode.OK;
+			return listOfStatusCodes;
 		}
 
 		/// <summary>
