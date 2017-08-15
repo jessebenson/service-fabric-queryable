@@ -179,7 +179,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				{
 					Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
 					List<DmlResult> finalResult = new List<DmlResult>();
-
+					
 					for (int i = 0; i < obj.Length; i++)
 					{
 						List<int> templist = new List<int>();
@@ -223,7 +223,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 							DmlResult tempResult = new DmlResult();
 							tempResult.Key = obj[myref].Key;
-							tempResult.collection = obj[myref].Collection;
+							tempResult.Collection = obj[myref].Collection;
 							tempResult.PartitionId = mypid;
 
 							finalResult.Add(tempResult);
@@ -233,7 +233,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						{
 							if (p < finalResult.Count)
 							{
-								finalResult[p].Status = row; ;
+								finalResult[p].Status = row; 
 								p++;
 							}
 						}

@@ -135,7 +135,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						var key = JsonConvert.DeserializeObject(myBack.Key, keyType);
 						var val = JsonConvert.DeserializeObject(myBack.Value, valueType);
 						var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-						if (myBack.Operation == "Add")
+						if (myBack.Operation == Controller.Operation.Add)
 						{
 							try
 							{
@@ -148,12 +148,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 							}
 							listOfStatusCodes.Add((int)HttpStatusCode.OK);
 						}
-						if (myBack.Operation == "Update")
+						if (myBack.Operation == Controller.Operation.Update)
 						{
 							await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, val });
 							listOfStatusCodes.Add((int)HttpStatusCode.OK);
 						}
-						if (myBack.Operation == "Delete")
+						if (myBack.Operation == Controller.Operation.Delete)
 						{
 							try
 							{
