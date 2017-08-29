@@ -46,7 +46,7 @@ namespace Basic.ProductSvc
 		{
 			var products = await GetProductsStateAsync();
 			var products2 = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products2");
-
+			var cars = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Cars>>("Cars");
 			int partitionIndex = await GetPartitionIndex().ConfigureAwait(false);
 			for (int i = 0; i < 10; i++)
 			{
@@ -56,8 +56,10 @@ namespace Basic.ProductSvc
 					var key2 = $"sku-{i}";
 					var value = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };
 					var value2 = new Product { Sku = key, Price = 30.0 + (i / 10.0), Quantity = i * 2 };
+					var value3 = new Cars { Model = key, Price = 8000 + (i / 10.0), HorsePower = i * 50, MPG = i + 30 };
 					await products.SetAsync(tx, key, value, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
 					await products2.SetAsync(tx, key2, value2, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
+					await cars.SetAsync(tx, key2, value3, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
 					await tx.CommitAsync().ConfigureAwait(false);
 				}
 			}
