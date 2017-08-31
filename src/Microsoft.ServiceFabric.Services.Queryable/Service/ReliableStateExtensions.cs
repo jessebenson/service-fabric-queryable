@@ -150,8 +150,29 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						}
 						if (myBack.Operation == Controller.Operation.Update)
 						{
-							await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, val });
-							listOfStatusCodes.Add((int)HttpStatusCode.OK);
+							try
+							{ //Check if value already exists, if it exists then only update.
+								var getValTask = (Task)dictionaryType.GetMethod("TryGetValueAsync", new[] { typeof(ITransaction), keyType, typeof(LockMode)}).Invoke(dictionary, new[] { tx, key, LockMode.Update });
+								await getValTask.ConfigureAwait(false);
+								var result = getValTask.GetPropertyValue<object>("Result");
+								var success = result.GetPropertyValue<bool>("HasValue");
+								if (!success)
+								{
+									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+									return listOfStatusCodes;
+								}
+								else
+								{
+									await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, val });
+									listOfStatusCodes.Add((int)HttpStatusCode.OK);
+								}
+							}
+							catch (ArgumentException)
+							{
+								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+								return listOfStatusCodes;
+							}
+							
 						}
 						if (myBack.Operation == Controller.Operation.Delete)
 						{
