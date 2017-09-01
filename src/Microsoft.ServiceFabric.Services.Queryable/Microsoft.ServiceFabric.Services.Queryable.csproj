@@ -123,6 +123,7 @@
     <Compile Include="Controller\ValueViewModel.cs" />
     <Compile Include="Controller\QueryableController.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Query\CRC64.cs" />
     <Compile Include="Query\DmlResult.cs" />
     <Compile Include="Query\Entity.cs" />
     <Compile Include="Query\InMemoryMessage.cs" />

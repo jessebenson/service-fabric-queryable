@@ -12,5 +12,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Controller
 		public Guid PartitionId { get; set; }
 		public JToken Key { get; set; }
 		public JToken Value { get; set; }
+		public string Etag { get; set; }
 	}
 }
