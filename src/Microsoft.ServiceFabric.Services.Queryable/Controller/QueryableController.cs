@@ -218,6 +218,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 								new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
 							backendObject.Operation = obj[myref].Operation;
 							backendObject.Collection = obj[myref].Collection;
+							backendObject.Etag = obj[myref].Etag;
 
 							backendObjects.Add(backendObject);
 
