@@ -1,15 +1,18 @@
 ﻿using System.Globalization;
 using System.Text;
 
-/// <summary>
-/// Computes CRC64 for a given byte payload.
-/// </summary>
-internal static class CRC64
+
+namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	/// <summary>
-	/// CRC table.
+	/// Computes CRC64 for a given byte payload.
 	/// </summary>
-	private static readonly ulong[] Crc64Table = {
+	internal static class CRC64
+	{
+		/// <summary>
+		/// CRC table.
+		/// </summary>
+		private static readonly ulong[] Crc64Table = {
 			0x0000000000000000, 0x42F0E1EBA9EA3693, 0x85E1C3D753D46D26, 0xC711223CFA3E5BB5,
 			0x493366450E42ECDF, 0x0BC387AEA7A8DA4C, 0xCCD2A5925D9681F9, 0x8E224479F47CB76A,
 			0x9266CC8A1C85D9BE, 0xD0962D61B56FEF2D, 0x17870F5D4F51B498, 0x5577EEB6E6BB820B,
@@ -76,43 +79,44 @@ internal static class CRC64
 			0x5DEDC41A34BBEEB2, 0x1F1D25F19D51D821, 0xD80C07CD676F8394, 0x9AFCE626CE85B507
 		};
 
-	/// <summary>
-	/// Returns the CRC64 for the given payload.
-	/// </summary>
-	/// <param name="value">Byte payload.</param>
-	/// <returns>CRC64 value.</returns>
-	public static ulong ToCRC64(byte[] value)
-	{
-		var crc = 0xffffffffffffffff;
-		for (var i = 0; i < value.Length; i++)
+		/// <summary>
+		/// Returns the CRC64 for the given payload.
+		/// </summary>
+		/// <param name="value">Byte payload.</param>
+		/// <returns>CRC64 value.</returns>
+		public static ulong ToCRC64(byte[] value)
 		{
-			var tableIndex = (((uint)(crc >> 56)) ^ value[i]) & 0xff;
-			crc = Crc64Table[tableIndex] ^ (crc << 8);
+			var crc = 0xffffffffffffffff;
+			for (var i = 0; i < value.Length; i++)
+			{
+				var tableIndex = (((uint)(crc >> 56)) ^ value[i]) & 0xff;
+				crc = Crc64Table[tableIndex] ^ (crc << 8);
+			}
+
+			return crc ^ 0xffffffffffffffff;
 		}
 
-		return crc ^ 0xffffffffffffffff;
+		/// <summary>
+		/// Returns the CRC64 for the given string.
+		/// </summary>
+		/// <param name="value">String payload.</param>
+		/// <returns>CRC64 value.</returns>
+		public static ulong ToCRC64(string value)
+		{
+			return CRC64.ToCRC64(Encoding.UTF8.GetBytes(value));
+		}
+
+		/// <summary>
+		/// Returns the CRC64 in string form for the given payload.
+		/// </summary>
+		/// <param name="value">Byte payload.</param>
+		/// <returns>CRC64 value.</returns>
+		public static string ToCrc64String(byte[] value)
+		{
+			var crc64 = ToCRC64(value);
+			return crc64.ToString("X", CultureInfo.InvariantCulture);
+		}
+
+
 	}
-
-	/// <summary>
-	/// Returns the CRC64 for the given string.
-	/// </summary>
-	/// <param name="value">String payload.</param>
-	/// <returns>CRC64 value.</returns>
-	public static ulong ToCRC64(string value)
-	{
-		return CRC64.ToCRC64(Encoding.UTF8.GetBytes(value));
-	}
-
-	/// <summary>
-	/// Returns the CRC64 in string form for the given payload.
-	/// </summary>
-	/// <param name="value">Byte payload.</param>
-	/// <returns>CRC64 value.</returns>
-	public static string ToCrc64String(byte[] value)
-	{
-		var crc64 = ToCRC64(value);
-		return crc64.ToString("X", CultureInfo.InvariantCulture);
-	}
-
-
 }
