@@ -7,10 +7,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.ServiceFabric.Data;
+using Microsoft.ServiceFabric.Data.Collections;
 using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
-using Microsoft.ServiceFabric.Data;
+using Basic.Common;
 
 namespace Basic.UserSvc
 {
@@ -48,6 +50,34 @@ namespace Basic.UserSvc
 							.Build();
 					}))
 			};
+		}
+
+		protected override async Task RunAsync(CancellationToken cancellationToken)
+		{
+			var users = await StateManager.GetOrAddAsync<IReliableDictionary<string, UserProfile>>("users");
+
+			for (int i = 0; i < 50; i++)
+			{
+				using (var tx = StateManager.CreateTransaction())
+				{
+					var user = new UserProfile
+					{
+						Name = $"User {i}",
+						Email = $"user-{i}@example.com",
+						Age = 20 + i / 3,
+						Address = new Address
+						{
+							AddressLine1 = $"1{i} Main St.",
+							City = "Seattle",
+							State = "WA",
+							Zipcode = 98117,
+						},
+					};
+
+					await users.SetAsync(tx, user.Email, user, TimeSpan.FromSeconds(4), cancellationToken);
+					await tx.CommitAsync();
+				}
+			}
 		}
 	}
 }
