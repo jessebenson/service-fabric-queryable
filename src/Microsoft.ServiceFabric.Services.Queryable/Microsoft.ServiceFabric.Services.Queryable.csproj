@@ -146,7 +146,9 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="Microsoft.ServiceFabric.Services.Queryable.nuspec" />
-    <None Include="packages.config" />
+    <None Include="packages.config">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

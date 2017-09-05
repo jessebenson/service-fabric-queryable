@@ -38,9 +38,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					// Parse the metadata as xml.
 					XmlDocument xml = new XmlDocument();
 					xml.LoadXml(metadata);
+
 					// Return xml response.
 					content = xml.InnerXml;
 				}
+
 				// Return response, with appropriate CORS headers.
 				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/xml") };
 				AddAccessControlHeaders(Request, response);
@@ -53,7 +55,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		protected async Task<IHttpActionResult> GetPartitionMetadataAsync(string application, string service, string partitionId)
+		protected async Task<IHttpActionResult> GetPartitionMetadataAsync(string application, string service, Guid partitionId)
 		{
 			var serviceUri = GetServiceUri(application, service);
 
@@ -62,15 +64,17 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				string content = string.Empty;
 				if (Request.Method == HttpMethod.Get)
 				{
-					var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, System.Guid.Parse(partitionId)).ConfigureAwait(false);
+					var proxy = await GetServiceProxyAsync<IQueryableService>(serviceUri, partitionId).ConfigureAwait(false);
 					var metadata = await proxy.GetMetadataAsync().ConfigureAwait(false);
 
 					// Parse the metadata as xml.
 					XmlDocument xml = new XmlDocument();
 					xml.LoadXml(metadata);
+
 					// Return xml response.
 					content = xml.InnerXml;
 				}
+
 				// Return response, with appropriate CORS headers.
 				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/xml") };
 				AddAccessControlHeaders(Request, response);
@@ -108,9 +112,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					// Return json response.
 					content = JsonConvert.SerializeObject(result);
 				}
+
 				// Return response, with appropriate CORS headers.
 				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/json") };
 				AddAccessControlHeaders(Request, response);
+
 				return new ResponseMessageResult(response);
 			}
 			catch (Exception e)
@@ -119,7 +125,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		protected async Task<IHttpActionResult> QuerySpecificPartitionAsync(string application, string service, string partitionId, string collection)
+		protected async Task<IHttpActionResult> QuerySpecificPartitionAsync(string application, string service, Guid partitionId, string collection)
 		{
 			var serviceUri = GetServiceUri(application, service);
 
@@ -130,9 +136,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				{
 					var query = Request.GetQueryNameValuePairs();
 
-					// Query one specific service partittion.
-
-					var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, System.Guid.Parse(partitionId)).ConfigureAwait(false);
+					// Query one specific service partition.
+					var proxy = await GetServiceProxyAsync<IQueryableService>(serviceUri, partitionId).ConfigureAwait(false);
 					var results = await proxy.QueryPartitionAsync(collection, query);
 
 					// Construct the final, aggregated result.
@@ -145,9 +150,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					// Return json response.
 					content = JsonConvert.SerializeObject(result);
 				}
+
 				// Return response, with appropriate CORS headers.
 				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/json") };
 				AddAccessControlHeaders(Request, response);
+
 				return new ResponseMessageResult(response);
 			}
 			catch (Exception e)
@@ -158,18 +165,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 		private void AddAccessControlHeaders(HttpRequestMessage request, HttpResponseMessage response)
 		{
-			IEnumerable<string> headers;
-			//response.Headers.Add("Access-Control-Allow-Methods", "GET");
 			response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE");
 
+			IEnumerable<string> headers;
 			if (request.Headers.TryGetValues("Origin", out headers))
 				response.Headers.Add("Access-Control-Allow-Origin", headers);
 			if (request.Headers.TryGetValues("Access-Control-Request-Headers", out headers))
 				response.Headers.Add("Access-Control-Allow-Headers", headers);
 		}
 
-		protected async Task<IHttpActionResult> DmlAsync(string application, string service,
-			ValueViewModel[] obj)
+		protected async Task<IHttpActionResult> DmlAsync(string application, string service, ValueViewModel[] obj)
 		{
 			var serviceUri = GetServiceUri(application, service);
 			try
@@ -203,7 +208,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					foreach (Guid mypid in preMap.Keys)
 					{
 						//Fetch partition proxy.
-						var proxy = await GetServiceProxyForPidAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
+						var proxy = await GetServiceProxyAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
 						List<BackendViewModel> backendObjects = new List<BackendViewModel>();
 
 						var listOfStatusCodes = new List<int>();
@@ -285,7 +290,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private static async Task<T> GetServiceProxyForPidAsync<T>(Uri serviceUri, Guid partitionId)
+		private static async Task<T> GetServiceProxyAsync<T>(Uri serviceUri, Guid partitionId)
 			where T : IService
 		{
 			using (var client = new FabricClient())
@@ -294,8 +299,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var matchingPartition = partitions.FirstOrDefault(p => p.PartitionInformation.Id == partitionId);
 				if (matchingPartition == null)
 				{
-					throw new HttpException("PartitionId : " + partitionId.ToString() + "  " + (HttpStatusCode.NotFound.ToString()));
+					throw new HttpException($"Partition '{partitionId}' not found.");
 				}
+
 				return CreateServiceProxy<T>(serviceUri, matchingPartition);
 			}
 		}
@@ -305,7 +311,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			using (var client = new FabricClient())
 			{
 				var partitions = await client.QueryManager.GetPartitionListAsync(serviceUri).ConfigureAwait(false);
-
 				int randomindex = Random.Value.Next(0, partitions.Count);
 				return partitions[randomindex].PartitionInformation.Id;
 			}
@@ -314,11 +319,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
 		{
 			if (partition.PartitionInformation is Int64RangePartitionInformation)
-				return ServiceProxy.Create<T>(serviceUri,
-					new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
+				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
 			if (partition.PartitionInformation is NamedPartitionInformation)
-				return ServiceProxy.Create<T>(serviceUri,
-					new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
+				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
 			if (partition.PartitionInformation is SingletonPartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri);
 

@@ -12,7 +12,6 @@ using System.Fabric.Query;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,8 +61,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
 		public static async Task<IEnumerable<string>> QueryAsync(this IReliableStateManager stateManager,
-			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query,
-			CancellationToken cancellationToken)
+			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
 		{
 			// Query all service partitions concurrently.
 			var proxies = await GetServiceProxiesAsync<IQueryableService>(context).ConfigureAwait(false);
@@ -96,8 +94,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
 		public static async Task<IEnumerable<string>> QueryPartitionAsync(this IReliableStateManager stateManager,
-			string collection, IEnumerable<KeyValuePair<string, string>> query, Guid partitionId,
-			CancellationToken cancellationToken)
+			string collection, IEnumerable<KeyValuePair<string, string>> query, Guid partitionId, CancellationToken cancellationToken)
 		{
 			// Find the reliable state.
 			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
@@ -111,6 +108,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var entityType = reliableState.GetEntityType();
 				results = ApplyQuery(results, entityType, query, aggregate: false);
 			}
+
 			// Return the filtered data as json.
 			return results.Select(JsonConvert.SerializeObject);
 		}
@@ -126,7 +124,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var listOfStatusCodes = new List<int>();
 			try
 			{
-				using (ITransaction tx = stateManager.CreateTransaction())
+				using (var tx = stateManager.CreateTransaction())
 				{
 					foreach (Controller.BackendViewModel myBack in backendObjects)
 					{
@@ -136,9 +134,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						var key = JsonConvert.DeserializeObject(myBack.Key, keyType);
 						var val = JsonConvert.DeserializeObject(myBack.Value, valueType);
 						var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
-
-						
-
 
 						if (myBack.Operation == Controller.Operation.Add)
 						{
@@ -158,28 +153,29 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						await getValTask.ConfigureAwait(false);
 						var getValTaskResult = getValTask.GetPropertyValue<object>("Result");
 						var getValSuccess = getValTaskResult.GetPropertyValue<bool>("HasValue");
+
 						if (myBack.Operation == Controller.Operation.Update)
 						{
 							try
-							{ //Check if value already exists, if it exists then only update.
-								
+							{
+								// Only update the value if it exists.
 								if (!getValSuccess)
 								{
 									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
 									return listOfStatusCodes;
 								}
-								else if(getValSuccess)
+								else
 								{
 									var oldVal = getValTaskResult.GetPropertyValue<object>("Value");
 									var oldValEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(oldVal)).ToString();
-									if(oldValEtag!=myBack.Etag)
+									if (oldValEtag != myBack.Etag)
 									{
 										listOfStatusCodes.Add((int)HttpStatusCode.PreconditionFailed);
 										return listOfStatusCodes;
 									}
+
 									await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, val });
 									listOfStatusCodes.Add((int)HttpStatusCode.OK);
-
 								}
 							}
 							catch (ArgumentException)
@@ -187,8 +183,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
 								return listOfStatusCodes;
 							}
-							
 						}
+
 						if (myBack.Operation == Controller.Operation.Delete)
 						{
 							try
@@ -198,7 +194,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);//key has no corresponding value & you are trying to delete what doesnt exist.
 									return listOfStatusCodes;
 								}
-								else if (getValSuccess)
+								else
 								{
 									var oldVal = getValTaskResult.GetPropertyValue<object>("Value");
 									var oldValEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(oldVal)).ToString();
@@ -237,6 +233,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
 			}
+
 			return listOfStatusCodes;
 		}
 
@@ -246,8 +243,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <returns>The reliable collection that supports querying.</returns>
-		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager,
-			string collection)
+		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
 		{
 			// Find the reliable state.
 			var reliableStateResult = await stateManager.TryGetAsync<IReliableState>(collection).ConfigureAwait(false);
@@ -381,11 +377,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		private static T CreateServiceProxy<T>(Uri serviceUri, Partition partition) where T : IService
 		{
 			if (partition.PartitionInformation is Int64RangePartitionInformation)
-				return ServiceProxy.Create<T>(serviceUri,
-					new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
+				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((Int64RangePartitionInformation)partition.PartitionInformation).LowKey));
 			if (partition.PartitionInformation is NamedPartitionInformation)
-				return ServiceProxy.Create<T>(serviceUri,
-					new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
+				return ServiceProxy.Create<T>(serviceUri, new ServicePartitionKey(((NamedPartitionInformation)partition.PartitionInformation).Name));
 			if (partition.PartitionInformation is SingletonPartitionInformation)
 				return ServiceProxy.Create<T>(serviceUri);
 
