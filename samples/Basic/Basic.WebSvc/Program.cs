@@ -15,7 +15,7 @@ namespace Basic.WebSvc
 			// When Service Fabric creates an instance of this service type,
 			// an instance of the class is created in this host process.
 
-			ServiceRuntime.RegisterServiceAsync("WebSvcType",
+			ServiceRuntime.RegisterServiceAsync("Basic.WebSvcType",
 				context => new WebSvc(context)).GetAwaiter().GetResult();
 
 			// Prevents this host process from terminating so services keeps running.

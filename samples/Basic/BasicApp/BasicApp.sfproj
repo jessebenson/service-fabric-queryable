@@ -32,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Basic.ProductSvc\Basic.ProductSvc.csproj" />
+    <ProjectReference Include="..\Basic.UserSvc\Basic.UserSvc.csproj" />
     <ProjectReference Include="..\Basic.WebSvc\Basic.WebSvc.csproj" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />

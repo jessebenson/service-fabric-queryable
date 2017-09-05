@@ -1,20 +1,22 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26608.5
+VisualStudioVersion = 15.0.26730.8
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{A07B5EB6-E848-4116-A8D0-A826331D98C6}") = "BasicApp", "BasicApp\BasicApp.sfproj", "{B6E20EEF-65CF-458C-A483-95EDA90E8B09}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic.ProductSvc", "Basic.ProductSvc\Basic.ProductSvc.csproj", "{BE75C40F-0F48-4517-8D62-21CBCEB2E2AE}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic.WebSvc", "Basic.WebSvc\Basic.WebSvc.csproj", "{E1E60919-4CD0-45A1-B6E8-711C076C35DD}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic.Common", "Basic.Common\Basic.Common.csproj", "{A4FB1FEE-756F-4071-9F91-714807D75D16}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{11CBAB43-52AF-44E9-A022-A2812BFDB648}"
 	ProjectSection(SolutionItems) = preProject
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{A07B5EB6-E848-4116-A8D0-A826331D98C6}") = "BasicApp", "BasicApp\BasicApp.sfproj", "{B6E20EEF-65CF-458C-A483-95EDA90E8B09}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic.ProductSvc", "Basic.ProductSvc\Basic.ProductSvc.csproj", "{BE75C40F-0F48-4517-8D62-21CBCEB2E2AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic.UserSvc", "Basic.UserSvc\Basic.UserSvc.csproj", "{50EF5880-31E0-4318-8724-A4F6CCB0015B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic.WebSvc", "Basic.WebSvc\Basic.WebSvc.csproj", "{E1E60919-4CD0-45A1-B6E8-711C076C35DD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Basic.Common", "Basic.Common\Basic.Common.csproj", "{A4FB1FEE-756F-4071-9F91-714807D75D16}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Microsoft.ServiceFabric.Services.Queryable", "..\..\src\Microsoft.ServiceFabric.Services.Queryable\Microsoft.ServiceFabric.Services.Queryable.csproj", "{4B9D2C27-562E-48A5-BAD1-B66E67413943}"
 EndProject
@@ -60,8 +62,19 @@ Global
 		{4B9D2C27-562E-48A5-BAD1-B66E67413943}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4B9D2C27-562E-48A5-BAD1-B66E67413943}.Release|x64.ActiveCfg = Release|x64
 		{4B9D2C27-562E-48A5-BAD1-B66E67413943}.Release|x64.Build.0 = Release|x64
+		{50EF5880-31E0-4318-8724-A4F6CCB0015B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50EF5880-31E0-4318-8724-A4F6CCB0015B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50EF5880-31E0-4318-8724-A4F6CCB0015B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{50EF5880-31E0-4318-8724-A4F6CCB0015B}.Debug|x64.Build.0 = Debug|Any CPU
+		{50EF5880-31E0-4318-8724-A4F6CCB0015B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50EF5880-31E0-4318-8724-A4F6CCB0015B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50EF5880-31E0-4318-8724-A4F6CCB0015B}.Release|x64.ActiveCfg = Release|Any CPU
+		{50EF5880-31E0-4318-8724-A4F6CCB0015B}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E0B1E51A-C547-48E3-BCA9-3C6B4C6C0F61}
 	EndGlobalSection
 EndGlobal
