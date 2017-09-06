@@ -1,11 +1,14 @@
 ﻿using Microsoft.ServiceFabric.Services.Queryable;
-using Microsoft.ServiceFabric.Services.Queryable.Controller;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Threading.Tasks;
 using System.Web.Http;
 
 namespace Basic.WebSvc.Controllers
 {
+	/// <remarks>
+	/// DEPRECATED: this class will be removed in favor of HTTP middleware.
+	/// </remarks>
 	public class QueryController : QueryableController
 	{
 		/// <summary>
@@ -78,10 +81,11 @@ namespace Basic.WebSvc.Controllers
 		}
 
 		/// <summary>
-		/// Does all listed Dml operations in a single transaction. Atomic in nature.
+		/// Executes all listed operations in a single transaction, atomically.
+		/// 
 		/// Sample:
-		/// - POST /query/BasicApp/ProductSvc and in Body provide a Json Array:
-		/// In Body:
+		/// 
+		/// POST /query/BasicApp/ProductSvc
 		/// [{
 		///    "Operation": "Update",
 		///    "Collection": "products",
@@ -110,15 +114,12 @@ namespace Basic.WebSvc.Controllers
 		///      "Quantity": 0
 		///    }
 		/// }]
-		/// 
-		/// Record belonging to the key provided in the JSON Body of HTTP POST Request is added to a partition ID mentioned, if its not existing already.
-		/// Incase Partition ID is not mentioned, Record is added to random partition ID. If it is already existing a bad request exception is raised.
 		/// </summary>
 		[HttpPost, HttpOptions]
 		[Route("query/{application}/{service}")]
-		public Task<IHttpActionResult> Dml(string application, string service, [FromBody] ValueViewModel[] obj)
+		public Task<IHttpActionResult> Execute(string application, string service, [FromBody] EntityOperation<JToken, JToken>[] operations)
 		{
-			return DmlAsync(application, service, obj);
+			return ExecuteAsync(application, service, operations);
 		}
 	}
 }

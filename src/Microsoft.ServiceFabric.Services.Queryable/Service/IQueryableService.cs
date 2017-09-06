@@ -7,6 +7,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 	/// <summary>
 	/// This is the service interface that must be implemented by stateful services that support querying.
 	/// </summary>
+	/// <remarks>
+	/// DEPRECATED: this interface will be removed in favor of HTTP middleware.
+	/// </remarks>
 	public interface IQueryableService : IService
 	{
 		/// <summary>
@@ -37,10 +40,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		Task<IEnumerable<string>> QueryPartitionAsync(string collection, IEnumerable<KeyValuePair<string, string>> query);
 
 		/// <summary>
-		/// Perform the Dml Operations given in  <paramref name="backendObjects"/>
+		/// Execute the operations given in <paramref name="operations"/> in a transaction.
 		/// </summary>
-		/// <param name="backendObjects">Array of objects of class BackendViewModel involving Operation,Collection,Key & Value.</param>
-		/// <returns>A list of statuscodes indicating success/failure of the operations.</returns>
-		Task<List<int>> DmlAsync(Controller.BackendViewModel[] backendObjects);
+		/// <param name="operations">Operations (add/update/delete) to perform against collections in the partition.</param>
+		/// <returns>A list of status codes indicating success/failure of the operations.</returns>
+		Task<List<int>> ExecuteAsync(EntityOperation<string, string>[] operations);
 	}
 }

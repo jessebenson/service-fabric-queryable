@@ -1,5 +1,4 @@
 ﻿using Microsoft.ServiceFabric.Services.Client;
-using Microsoft.ServiceFabric.Services.Queryable.Controller;
 using Microsoft.ServiceFabric.Services.Remoting;
 using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Newtonsoft.Json;
@@ -21,6 +20,9 @@ using System.Xml;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
+	/// <remarks>
+	/// DEPRECATED: this class will be removed in favor of HTTP middleware.
+	/// </remarks>
 	public abstract class QueryableController : ApiController
 	{
 		protected async Task<IHttpActionResult> GetMetadataAsync(string application, string service)
@@ -174,7 +176,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				response.Headers.Add("Access-Control-Allow-Headers", headers);
 		}
 
-		protected async Task<IHttpActionResult> DmlAsync(string application, string service, ValueViewModel[] obj)
+		protected async Task<IHttpActionResult> ExecuteAsync(string application, string service, EntityOperation<JToken, JToken>[] operations)
 		{
 			var serviceUri = GetServiceUri(application, service);
 			try
@@ -185,56 +187,59 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					Dictionary<Guid, List<int>> preMap = new Dictionary<Guid, List<int>>();
 					List<DmlResult> finalResult = new List<DmlResult>();
 					
-					for (int i = 0; i < obj.Length; i++)
+					for (int i = 0; i < operations.Length; i++)
 					{
 						List<int> templist = new List<int>();
-						if (obj[i].PartitionId == Guid.Empty)
+						if (operations[i].PartitionId == Guid.Empty)
 						{
-							obj[i].PartitionId = await GetRandomPartitionId(serviceUri);
+							operations[i].PartitionId = await GetRandomPartitionId(serviceUri);
 						}
-						if (preMap.ContainsKey(obj[i].PartitionId))
+						if (preMap.ContainsKey(operations[i].PartitionId))
 						{
-							templist = preMap[obj[i].PartitionId];
+							templist = preMap[operations[i].PartitionId];
 							templist.Add(i);
-							preMap[obj[i].PartitionId] = templist;
+							preMap[operations[i].PartitionId] = templist;
 						}
 						else
 						{
 							templist.Add(i);
-							preMap[obj[i].PartitionId] = templist;
+							preMap[operations[i].PartitionId] = templist;
 						}
 					}
+
 					int p = 0;
 					foreach (Guid mypid in preMap.Keys)
 					{
 						//Fetch partition proxy.
 						var proxy = await GetServiceProxyAsync<IQueryableService>(serviceUri, mypid).ConfigureAwait(false);
-						List<BackendViewModel> backendObjects = new List<BackendViewModel>();
+						var backendOperations = new List<EntityOperation<string, string>>();
 
 						var listOfStatusCodes = new List<int>();
 						foreach (int myref in preMap[mypid])
 						{
-							BackendViewModel backendObject = new BackendViewModel();
+							var op = operations[myref];
+							var backendOperation = new EntityOperation<string, string>
+							{
+								Operation = op.Operation,
+								Collection = op.Collection,
+								PartitionId = op.PartitionId,
+								Key = JsonConvert.SerializeObject(op.Key, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii }),
+								Value = JsonConvert.SerializeObject(op.Value, new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii }),
+								Etag = op.Etag,
+							};
 
-							backendObject.Key = JsonConvert.SerializeObject(obj[myref].Key,
-								new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
-
-							backendObject.Value = JsonConvert.SerializeObject(obj[myref].Value,
-								new JsonSerializerSettings { StringEscapeHandling = StringEscapeHandling.EscapeNonAscii });
-							backendObject.Operation = obj[myref].Operation;
-							backendObject.Collection = obj[myref].Collection;
-							backendObject.Etag = obj[myref].Etag;
-
-							backendObjects.Add(backendObject);
+							backendOperations.Add(backendOperation);
 
 							DmlResult tempResult = new DmlResult();
-							tempResult.Key = obj[myref].Key;
-							tempResult.Collection = obj[myref].Collection;
+							tempResult.Key = operations[myref].Key;
+							tempResult.Collection = operations[myref].Collection;
 							tempResult.PartitionId = mypid;
 
 							finalResult.Add(tempResult);
 						}
-						listOfStatusCodes = await proxy.DmlAsync(backendObjects.ToArray());
+
+						listOfStatusCodes = await proxy.ExecuteAsync(backendOperations.ToArray());
+
 						foreach (var row in listOfStatusCodes)
 						{
 							if (p < finalResult.Count)
@@ -244,11 +249,14 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 							}
 						}
 					}
+
 					content = JsonConvert.SerializeObject(finalResult);
 				}
+
 				// Return response, with appropriate CORS headers.
 				var response = new HttpResponseMessage { Content = new StringContent(content, Encoding.UTF8, "application/json") };
 				AddAccessControlHeaders(Request, response);
+
 				return new ResponseMessageResult(response);
 			}
 			catch (Exception e)
@@ -266,11 +274,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				return BadRequest(e.Message);
 			if (e.InnerException is ArgumentException)
 				return BadRequest(e.InnerException.Message);
+
 			if (e is HttpException)
 				return Content((HttpStatusCode)((HttpException)e).GetHttpCode(), ((HttpException)e).Message);
 			if (e.InnerException is HttpException)
-				return Content((HttpStatusCode)((HttpException)e.InnerException).GetHttpCode(),
-					((HttpException)e.InnerException).Message);
+				return Content((HttpStatusCode)((HttpException)e.InnerException).GetHttpCode(), ((HttpException)e.InnerException).Message);
 
 			if (e is AggregateException)
 				return InternalServerError(e.InnerException ?? e);

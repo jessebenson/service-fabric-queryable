@@ -36,7 +36,7 @@ namespace Basic.UserSvc
 		{
 			loggerFactory.AddConsole(Configuration.GetSection("Logging"));
 			loggerFactory.AddDebug();
-			app.UseQueryable();
+			app.UseODataQueryable();
 			app.UseMvc();
 		}
 	}
