@@ -1,39 +1,54 @@
-﻿using Basic.Common;
-using Microsoft.ServiceFabric.Data.Collections;
-using Microsoft.ServiceFabric.Services.Communication.Runtime;
-using Microsoft.ServiceFabric.Services.Queryable;
-using Microsoft.ServiceFabric.Services.Remoting.Runtime;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Fabric;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
+using Microsoft.ServiceFabric.Services.Communication.Runtime;
+using Microsoft.ServiceFabric.Services.Runtime;
+using Microsoft.ServiceFabric.Data;
+using Microsoft.ServiceFabric.Data.Collections;
+using Basic.Common;
 
 namespace Basic.ProductSvc
 {
 	/// <summary>
-	/// An instance of this class is created for each service replica by the Service Fabric runtime.
+	/// The FabricRuntime creates an instance of this class for each service type instance. 
 	/// </summary>
-	internal sealed class ProductSvc : QueryableService, IProductService
+	internal sealed class ProductSvc : StatefulService
 	{
 		public ProductSvc(StatefulServiceContext context)
 			: base(context)
-		{
-		}
+		{ }
 
 		/// <summary>
-		/// Optional override to create listeners (e.g., HTTP, Service Remoting, WCF, etc.) for this service replica to handle client or user requests.
+		/// Optional override to create listeners (like tcp, http) for this service instance.
 		/// </summary>
-		/// <remarks>
-		/// For more information on service communication, see https://aka.ms/servicefabricservicecommunication
-		/// </remarks>
-		/// <returns>A collection of listeners.</returns>
+		/// <returns>The collection of listeners.</returns>
 		protected override IEnumerable<ServiceReplicaListener> CreateServiceReplicaListeners()
 		{
-			return new[]
+			return new ServiceReplicaListener[]
 			{
-				new ServiceReplicaListener(this.CreateServiceRemotingListener),
+				new ServiceReplicaListener(serviceContext =>
+					new KestrelCommunicationListener(serviceContext, (url, listener) =>
+					{
+						return new WebHostBuilder()
+							.UseKestrel()
+							.ConfigureServices(
+								services => services
+									.AddSingleton<StatefulServiceContext>(serviceContext)
+									.AddSingleton<IReliableStateManager>(this.StateManager))
+							.UseContentRoot(Directory.GetCurrentDirectory())
+							.UseStartup<Startup>()
+							.UseApplicationInsights()
+							.UseServiceFabricIntegration(listener, ServiceFabricIntegrationOptions.UseUniqueServiceUrl)
+							.UseUrls(url)
+							.Build();
+					}))
 			};
 		}
 
@@ -44,22 +59,20 @@ namespace Basic.ProductSvc
 		/// <param name="cancellationToken">Canceled when Service Fabric needs to shut down this service replica.</param>
 		protected override async Task RunAsync(CancellationToken cancellationToken)
 		{
-			var products = await GetProductsStateAsync();
-			var products2 = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products2");
+			var products = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products");
 			var cars = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Cars>>("Cars");
+
 			int partitionIndex = await GetPartitionIndex().ConfigureAwait(false);
 			for (int i = 0; i < 10; i++)
 			{
 				using (var tx = StateManager.CreateTransaction())
 				{
 					var key = $"sku-{i}";
-					var key2 = $"sku-{i}";
-					var value = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };
-					var value2 = new Product { Sku = key, Price = 30.0 + (i / 10.0), Quantity = i * 2 };
-					var value3 = new Cars { Model = key, Price = 8000 + (i / 10.0), HorsePower = i * 50, MPG = i + 30 };
-					await products.SetAsync(tx, key, value, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
-					await products2.SetAsync(tx, key2, value2, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
-					await cars.SetAsync(tx, key2, value3, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
+					var product = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };
+					var car = new Cars { Model = key, Price = 8000 + (i / 10.0), HorsePower = i * 50, MPG = i + 30 };
+					await products.SetAsync(tx, key, product, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
+					await cars.SetAsync(tx, key, car, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
+
 					await tx.CommitAsync().ConfigureAwait(false);
 				}
 			}
@@ -72,43 +85,6 @@ namespace Basic.ProductSvc
 				var partitionList = await client.QueryManager.GetPartitionListAsync(Context.ServiceName).ConfigureAwait(false);
 				var partitions = partitionList.Select(p => p.PartitionInformation.Id).OrderBy(id => id).ToList();
 				return partitions.IndexOf(Context.PartitionId);
-			}
-		}
-
-		private Task<IReliableDictionary<string, Product>> GetProductsStateAsync()
-		{
-			return this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products");
-		}
-
-		async Task<Product> IProductService.GetProductAsync(string sku)
-		{
-			var products = await GetProductsStateAsync();
-			using (var tx = StateManager.CreateTransaction())
-			{
-				var result = await products.TryGetValueAsync(tx, sku).ConfigureAwait(false);
-				await tx.CommitAsync().ConfigureAwait(false);
-				return result.Value;
-			}
-		}
-
-		async Task IProductService.UpdateProductAsync(Product product)
-		{
-			var products = await GetProductsStateAsync();
-			using (var tx = StateManager.CreateTransaction())
-			{
-				await products.SetAsync(tx, product.Sku, product).ConfigureAwait(false);
-				await tx.CommitAsync().ConfigureAwait(false);
-			}
-		}
-
-		async Task<Product> IProductService.DeleteProductAsync(string sku)
-		{
-			var products = await GetProductsStateAsync();
-			using (var tx = StateManager.CreateTransaction())
-			{
-				var result = await products.TryRemoveAsync(tx, sku).ConfigureAwait(false);
-				await tx.CommitAsync().ConfigureAwait(false);
-				return result.Value;
 			}
 		}
 	}

@@ -1,8 +1,5 @@
 ﻿using Microsoft.ServiceFabric.Services.Runtime;
-using System;
-using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Basic.UserSvc
 {
@@ -18,7 +15,7 @@ namespace Basic.UserSvc
 			// When Service Fabric creates an instance of this service type,
 			// an instance of the class is created in this host process.
 
-			ServiceRuntime.RegisterServiceAsync("UserSvcType",
+			ServiceRuntime.RegisterServiceAsync("Basic.UserSvcType",
 				context => new UserSvc(context)).GetAwaiter().GetResult();
 
 			// Prevents this host process from terminating so services keeps running. 

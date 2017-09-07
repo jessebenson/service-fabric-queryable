@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.ServiceFabric.Services.Queryable;
 
-namespace Basic.UserSvc
+namespace Basic.ProductSvc
 {
 	public class Startup
 	{
