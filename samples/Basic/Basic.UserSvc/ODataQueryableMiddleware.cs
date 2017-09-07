@@ -8,9 +8,11 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Fabric;
+using System.Fabric.Query;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,17 +60,13 @@ namespace Basic.UserSvc
 			if (request.Method == HttpMethods.Get && segments.Length == 2)
 				return QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[1]);
 
-			// GET query/<collection-name>/<partition-id>
-			if (request.Method == HttpMethods.Get && segments.Length == 3 && Guid.TryParse(segments[2], out Guid partitionId))
-				return QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[1], partitionId);
+			// GET query/<partition-id>/<collection-name>
+			if (request.Method == HttpMethods.Get && segments.Length == 3 && Guid.TryParse(segments[1], out Guid partitionId))
+				return QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[2], partitionId);
 
 			// POST query
 			if (request.Method == HttpMethods.Post && segments.Length == 1)
-				return UpdateCollectionAsync(httpContext, serviceContext, stateManager);
-
-			// POST query/<partition-id>
-			if (request.Method == HttpMethods.Post && segments.Length == 2 && Guid.TryParse(segments[1], out partitionId))
-				return UpdateCollectionAsync(httpContext, serviceContext, stateManager, partitionId);
+				return ExecuteAsync(httpContext, serviceContext, stateManager);
 
 			// Unknown queryable method.
 			return NotFound(httpContext);
@@ -89,19 +87,8 @@ namespace Basic.UserSvc
 		private async Task QueryCollectionAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager, string collection)
 		{
 			// Query the reliable collection.
-
-			httpContext.Response.ContentType = "application/json";
-			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
-
-			// Write the response.
-			await httpContext.Response.WriteAsync("{}").ConfigureAwait(false);
-		}
-
-		private async Task QueryCollectionAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager, string collection, Guid partitionId)
-		{
-			// Query the reliable collection.
 			var query = httpContext.Request.Query.Select(p => new KeyValuePair<string, string>(p.Key, p.Value));
-			var results = await stateManager.QueryPartitionAsync(collection, query, partitionId, CancellationToken.None).ConfigureAwait(false);
+			var results = await stateManager.QueryPartitionAsync(collection, query, serviceContext.PartitionId, CancellationToken.None).ConfigureAwait(false);
 
 			httpContext.Response.ContentType = "application/json";
 			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
@@ -111,25 +98,40 @@ namespace Basic.UserSvc
 			await httpContext.Response.WriteAsync(response).ConfigureAwait(false);
 		}
 
-		private async Task UpdateCollectionAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager)
+		private async Task QueryCollectionAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager, string collection, Guid partitionId)
 		{
-			var reader = new StreamReader(httpContext.Request.Body, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
-			string content = await reader.ReadToEndAsync().ConfigureAwait(false);
-			var operations = JsonConvert.DeserializeObject<EntityOperation<JToken, JToken>[]>(content);
+			if (partitionId == serviceContext.PartitionId)
+			{
+				// Query this partition.
+				await QueryCollectionAsync(httpContext, serviceContext, stateManager, collection).ConfigureAwait(false);
+				return;
+			}
 
-			// Update the reliable collections.
-			var results = await stateManager.ExecuteAsync(operations).ConfigureAwait(false);
+			// Forward the request to the correct partition.
+			var partition = await GetPartitionAsync(serviceContext, partitionId).ConfigureAwait(false);
+			if (partition == null)
+			{
+				await NotFound(httpContext).ConfigureAwait(false);
+				return;
+			}
 
-			httpContext.Response.ContentType = "application/json";
-			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
+			using (var client = new HttpClient { BaseAddress = new Uri("http://localhost:19081/") })
+			{
+				string requestUri = $"{serviceContext.ServiceName.AbsolutePath}/query/{collection}?{GetQueryParameters(httpContext, partition)}";
+				var response = await client.GetAsync(requestUri).ConfigureAwait(false);
+				var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-			// Write the response.
-			var response = JsonConvert.SerializeObject(results);
-			await httpContext.Response.WriteAsync(response).ConfigureAwait(false);
+				httpContext.Response.ContentType = response.Content.Headers.ContentType.MediaType;
+				httpContext.Response.StatusCode = (int)response.StatusCode;
+
+				// Write the response.
+				await httpContext.Response.WriteAsync(content).ConfigureAwait(false);
+			}
 		}
 
-		private async Task UpdateCollectionAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager, Guid partitionId)
+		private async Task ExecuteAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager)
 		{
+			// Read the body.
 			var reader = new StreamReader(httpContext.Request.Body, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 4096, leaveOpen: true);
 			string content = await reader.ReadToEndAsync().ConfigureAwait(false);
 			var operations = JsonConvert.DeserializeObject<EntityOperation<JToken, JToken>[]>(content);
@@ -169,6 +171,33 @@ namespace Basic.UserSvc
 				response.Headers.Add("Access-Control-Allow-Origin", headers);
 			if (request.Headers.TryGetValue("Access-Control-Request-Headers", out headers))
 				response.Headers.Add("Access-Control-Allow-Headers", headers);
+		}
+
+		private string GetQueryParameters(HttpContext httpContext, Partition partition)
+		{
+			var partitionParameters = GetPartitionQueryParameters(partition);
+			var queryParameters = partitionParameters.Concat(httpContext.Request.Query).Distinct();
+			return string.Join("&", queryParameters.Select(p => $"{p.Key}={p.Value}"));
+		}
+
+		private IEnumerable<KeyValuePair<string, StringValues>> GetPartitionQueryParameters(Partition partition)
+		{
+			var info = partition.PartitionInformation;
+			yield return new KeyValuePair<string, StringValues>("PartitionKind", info.Kind.ToString());
+
+			if (info.Kind == ServicePartitionKind.Int64Range)
+				yield return new KeyValuePair<string, StringValues>("PartitionKey", (info as Int64RangePartitionInformation).LowKey.ToString());
+			else if (info.Kind == ServicePartitionKind.Named)
+				yield return new KeyValuePair<string, StringValues>("PartitionKey", (info as NamedPartitionInformation).Name);
+		}
+
+		private async Task<Partition> GetPartitionAsync(StatefulServiceContext serviceContext, Guid partitionId)
+		{
+			using (var client = new FabricClient())
+			{
+				var partitions = await client.QueryManager.GetPartitionListAsync(serviceContext.ServiceName).ConfigureAwait(false);
+				return partitions.FirstOrDefault(p => p.PartitionInformation.Id == partitionId);
+			}
 		}
 	}
 
