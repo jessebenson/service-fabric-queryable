@@ -29,15 +29,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return StateManager.GetMetadataAsync();
 		}
 
-		Task<IEnumerable<string>> IQueryableService.QueryAsync(string collection, IEnumerable<KeyValuePair<string, string>> query)
+		async Task<IEnumerable<string>> IQueryableService.QueryAsync(string collection, IEnumerable<KeyValuePair<string, string>> query)
 		{
-			return StateManager.QueryAsync(Context, collection, query, CancellationToken.None);
+			var results = await StateManager.QueryAsync(Context, collection, query, CancellationToken.None);
+			return results.Select(r => r.ToString());
 		}
 
-		Task<IEnumerable<string>> IQueryableService.QueryPartitionAsync(string collection,
-			IEnumerable<KeyValuePair<string, string>> query)
+		async Task<IEnumerable<string>> IQueryableService.QueryPartitionAsync(string collection, IEnumerable<KeyValuePair<string, string>> query)
 		{
-			return StateManager.QueryPartitionAsync(collection, query, this.Partition.PartitionInfo.Id, CancellationToken.None);
+			var results = await StateManager.QueryPartitionAsync(collection, query, this.Partition.PartitionInfo.Id, CancellationToken.None);
+			return results.Select(r => r.ToString());
 		}
 
 		Task<List<int>> IQueryableService.ExecuteAsync(EntityOperation<string, string>[] operations)

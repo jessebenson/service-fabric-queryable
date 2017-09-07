@@ -88,13 +88,13 @@ namespace Basic.UserSvc
 		{
 			// Query the reliable collection.
 			var query = httpContext.Request.Query.Select(p => new KeyValuePair<string, string>(p.Key, p.Value));
-			var results = await stateManager.QueryPartitionAsync(collection, query, serviceContext.PartitionId, CancellationToken.None).ConfigureAwait(false);
+			var results = await stateManager.QueryAsync(serviceContext, collection, query, CancellationToken.None).ConfigureAwait(false);
 
 			httpContext.Response.ContentType = "application/json";
 			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
 
 			// Write the response.
-			string response = JsonConvert.SerializeObject(results.Select(r => JsonConvert.DeserializeObject<JObject>(r)));
+			string response = JsonConvert.SerializeObject(results);
 			await httpContext.Response.WriteAsync(response).ConfigureAwait(false);
 		}
 
