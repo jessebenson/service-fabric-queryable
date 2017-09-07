@@ -39,9 +39,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return results.Select(r => r.ToString());
 		}
 
-		Task<List<int>> IQueryableService.ExecuteAsync(EntityOperation<string, string>[] operations)
+		async Task<List<int>> IQueryableService.ExecuteAsync(EntityOperation<string, string>[] operations)
 		{
-			return StateManager.ExecuteAsync(operations.Select(o => new EntityOperation<JToken, JToken>
+			var results = await StateManager.ExecuteAsync(operations.Select(o => new EntityOperation<JToken, JToken>
 			{
 				Operation = o.Operation,
 				Collection = o.Collection,
@@ -50,6 +50,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				Value = JsonConvert.DeserializeObject<JToken>(o.Value),
 				Etag = o.Etag,
 			}).ToArray());
+
+			return results.Select(r => r.Status).ToList();
 		}
 	}
 }

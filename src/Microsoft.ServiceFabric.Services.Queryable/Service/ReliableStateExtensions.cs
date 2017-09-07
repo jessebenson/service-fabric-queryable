@@ -1,9 +1,6 @@
 ﻿using Microsoft.Data.OData;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
-using Microsoft.ServiceFabric.Services.Client;
-using Microsoft.ServiceFabric.Services.Remoting;
-using Microsoft.ServiceFabric.Services.Remoting.Client;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -163,125 +160,121 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="operations">Operations (add/update/delete) to perform against collections in the partition.</param>
 		/// <returns>A list of status codes indicating success/failure of the operations.</returns>
-		public static async Task<List<int>> ExecuteAsync(this IReliableStateManager stateManager, EntityOperation<JToken, JToken>[] operations)
+		public static async Task<List<DmlResult>> ExecuteAsync(this IReliableStateManager stateManager, EntityOperation<JToken, JToken>[] operations)
 		{
-			var listOfStatusCodes = new List<int>();
-			try
+			var results = new List<DmlResult>();
+			using (var tx = stateManager.CreateTransaction())
 			{
-				using (var tx = stateManager.CreateTransaction())
+				foreach (var operation in operations)
 				{
-					foreach (var operation in operations)
+					var result = new DmlResult
 					{
-						var dictionary = await stateManager.GetQueryableState(operation.Collection).ConfigureAwait(false);
+						PartitionId = operation.PartitionId,
+						Collection = operation.Collection,
+						Key = operation.Key,
+						Status = (int)HttpStatusCode.OK,
+					};
+					results.Add(result);
 
-						var keyType = dictionary.GetKeyType();
-						var valueType = dictionary.GetValueType();
-						var key = operation.Key.ToObject(keyType);
-						var value = operation.Value.ToObject(valueType);
-						var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+					var dictionary = await stateManager.GetQueryableState(operation.Collection).ConfigureAwait(false);
 
-						if (operation.Operation == Operation.Add)
+					var keyType = dictionary.GetKeyType();
+					var valueType = dictionary.GetValueType();
+					var key = operation.Key.ToObject(keyType);
+					var value = operation.Value.ToObject(valueType);
+					var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+
+					if (operation.Operation == Operation.Add)
+					{
+						try
 						{
-							try
-							{
-								await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, value });
-							}
-							catch (ArgumentException)
-							{
-								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest); // key already exists.
-								return listOfStatusCodes;
-							}
-							listOfStatusCodes.Add((int)HttpStatusCode.OK);
+							await (Task)dictionaryType.GetMethod("AddAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, value });
 						}
-
-						// TODO: this shouldn't be called in Add case.
-						var getValTask = (Task)dictionaryType.GetMethod("TryGetValueAsync", new[] { typeof(ITransaction), keyType, typeof(LockMode) }).Invoke(dictionary, new[] { tx, key, LockMode.Update });
-						await getValTask.ConfigureAwait(false);
-						var getValTaskResult = getValTask.GetPropertyValue<object>("Result");
-						var getValSuccess = getValTaskResult.GetPropertyValue<bool>("HasValue");
-
-						if (operation.Operation == Operation.Update)
+						catch (ArgumentException)
 						{
-							try
-							{
-								// Only update the value if it exists.
-								if (!getValSuccess)
-								{
-									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
-									return listOfStatusCodes;
-								}
-								else
-								{
-									var oldValue = getValTaskResult.GetPropertyValue<object>("Value");
-									var oldValEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(oldValue)).ToString();
-									if (oldValEtag != operation.Etag)
-									{
-										listOfStatusCodes.Add((int)HttpStatusCode.PreconditionFailed);
-										return listOfStatusCodes;
-									}
-
-									await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, value });
-									listOfStatusCodes.Add((int)HttpStatusCode.OK);
-								}
-							}
-							catch (ArgumentException)
-							{
-								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
-								return listOfStatusCodes;
-							}
-						}
-
-						if (operation.Operation == Operation.Delete)
-						{
-							try
-							{
-								if (!getValSuccess)
-								{
-									listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);//key has no corresponding value & you are trying to delete what doesnt exist.
-									return listOfStatusCodes;
-								}
-								else
-								{
-									var oldVal = getValTaskResult.GetPropertyValue<object>("Value");
-									var oldValEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(oldVal)).ToString();
-									if (oldValEtag != operation.Etag)
-									{
-										listOfStatusCodes.Add((int)HttpStatusCode.PreconditionFailed); // Value you are trying to delete has been changed.
-										return listOfStatusCodes;
-									}
-
-									var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
-									await deleteTask.ConfigureAwait(false);
-									var result = deleteTask.GetPropertyValue<object>("Result");
-									var success = result.GetPropertyValue<bool>("HasValue");
-									if (!success)
-									{
-										listOfStatusCodes.Add((int)HttpStatusCode.BadRequest); //couldnt delete value although its there n not changed etc.
-										return listOfStatusCodes;
-									}
-									else
-									{
-										listOfStatusCodes.Add((int)HttpStatusCode.OK);
-									}
-								}
-							}
-							catch (ArgumentException)
-							{
-								listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
-								return listOfStatusCodes;
-							}
+							result.Status = (int)HttpStatusCode.BadRequest; // key already exists.
+							return results;
 						}
 					}
 
-					await tx.CommitAsync().ConfigureAwait(false);
+					// TODO: this shouldn't be called in Add case.
+					var getValTask = (Task)dictionaryType.GetMethod("TryGetValueAsync", new[] { typeof(ITransaction), keyType, typeof(LockMode) }).Invoke(dictionary, new[] { tx, key, LockMode.Update });
+					await getValTask.ConfigureAwait(false);
+					var getValTaskResult = getValTask.GetPropertyValue<object>("Result");
+					var getValSuccess = getValTaskResult.GetPropertyValue<bool>("HasValue");
+
+					if (operation.Operation == Operation.Update)
+					{
+						try
+						{
+							// Only update the value if it exists.
+							if (!getValSuccess)
+							{
+								result.Status = (int)HttpStatusCode.BadRequest;
+								return results;
+							}
+							else
+							{
+								var oldValue = getValTaskResult.GetPropertyValue<object>("Value");
+								var oldValEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(oldValue)).ToString();
+								if (oldValEtag != operation.Etag)
+								{
+									result.Status = (int)HttpStatusCode.PreconditionFailed;
+									return results;
+								}
+
+								await (Task)dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType }).Invoke(dictionary, new[] { tx, key, value });
+							}
+						}
+						catch (ArgumentException)
+						{
+							result.Status = (int)HttpStatusCode.BadRequest;
+							return results;
+						}
+					}
+
+					if (operation.Operation == Operation.Delete)
+					{
+						try
+						{
+							if (!getValSuccess)
+							{
+								result.Status = (int)HttpStatusCode.BadRequest; // key has no corresponding value & you are trying to delete what doesnt exist.
+								return results;
+							}
+							else
+							{
+								var oldVal = getValTaskResult.GetPropertyValue<object>("Value");
+								var oldValEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(oldVal)).ToString();
+								if (oldValEtag != operation.Etag)
+								{
+									result.Status = (int)HttpStatusCode.PreconditionFailed; // Value you are trying to delete has been changed.
+									return results;
+								}
+
+								var deleteTask = (Task)dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType }).Invoke(dictionary, new[] { tx, key });
+								await deleteTask.ConfigureAwait(false);
+								var deleteResult = deleteTask.GetPropertyValue<object>("Result");
+								var deleteSuccess = deleteResult.GetPropertyValue<bool>("HasValue");
+								if (!deleteSuccess)
+								{
+									result.Status = (int)HttpStatusCode.BadRequest; // Cannot delete a value that's not there.
+									return results;
+								}
+							}
+						}
+						catch (ArgumentException)
+						{
+							result.Status = (int)HttpStatusCode.BadRequest;
+							return results;
+						}
+					}
 				}
-			}
-			catch (ArgumentException)
-			{
-				listOfStatusCodes.Add((int)HttpStatusCode.BadRequest);
+
+				await tx.CommitAsync().ConfigureAwait(false);
 			}
 
-			return listOfStatusCodes;
+			return results;
 		}
 
 		/// <summary>
