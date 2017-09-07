@@ -86,7 +86,7 @@ namespace Basic.UserSvc
 
 		private async Task QueryCollectionAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager, string collection)
 		{
-			// Query the reliable collection.
+			// Query the reliable collection for all partitions.
 			var query = httpContext.Request.Query.Select(p => new KeyValuePair<string, string>(p.Key, p.Value));
 			var results = await stateManager.QueryAsync(serviceContext, collection, query, CancellationToken.None).ConfigureAwait(false);
 
@@ -100,13 +100,27 @@ namespace Basic.UserSvc
 
 		private async Task QueryCollectionAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager, string collection, Guid partitionId)
 		{
-			if (partitionId == serviceContext.PartitionId)
+			if (partitionId != serviceContext.PartitionId)
 			{
 				// Query this partition.
-				await QueryCollectionAsync(httpContext, serviceContext, stateManager, collection).ConfigureAwait(false);
+				await ForwardQueryCollectionAsync(httpContext, serviceContext, stateManager, collection, partitionId).ConfigureAwait(false);
 				return;
 			}
 
+			// Query the local reliable collection.
+			var query = httpContext.Request.Query.Select(p => new KeyValuePair<string, string>(p.Key, p.Value));
+			var results = await stateManager.QueryPartitionAsync(collection, query, partitionId, CancellationToken.None).ConfigureAwait(false);
+
+			httpContext.Response.ContentType = "application/json";
+			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
+
+			// Write the response.
+			string response = JsonConvert.SerializeObject(results);
+			await httpContext.Response.WriteAsync(response).ConfigureAwait(false);
+		}
+
+		private async Task ForwardQueryCollectionAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager, string collection, Guid partitionId)
+		{
 			// Forward the request to the correct partition.
 			var partition = await GetPartitionAsync(serviceContext, partitionId).ConfigureAwait(false);
 			if (partition == null)
@@ -117,7 +131,7 @@ namespace Basic.UserSvc
 
 			using (var client = new HttpClient { BaseAddress = new Uri("http://localhost:19081/") })
 			{
-				string requestUri = $"{serviceContext.ServiceName.AbsolutePath}/query/{collection}?{GetQueryParameters(httpContext, partition)}";
+				string requestUri = $"{serviceContext.ServiceName.AbsolutePath}/query/{partitionId}/{collection}?{GetQueryParameters(httpContext, partition)}";
 				var response = await client.GetAsync(requestUri).ConfigureAwait(false);
 				var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 

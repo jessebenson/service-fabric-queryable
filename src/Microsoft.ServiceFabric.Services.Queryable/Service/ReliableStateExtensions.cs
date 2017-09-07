@@ -126,7 +126,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 			using (var client = new HttpClient { BaseAddress = new Uri("http://localhost:19081/") })
 			{
-				string requestUri = $"{context.ServiceName.AbsolutePath}/query/{collection}?{GetQueryParameters(query, partition)}";
+				string requestUri = $"{context.ServiceName.AbsolutePath}/query/{partition.PartitionInformation.Id}/{collection}?{GetQueryParameters(query, partition)}";
 				var response = await client.GetAsync(requestUri).ConfigureAwait(false);
 				var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
