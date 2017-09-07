@@ -121,6 +121,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return results.Select(r => JObject.FromObject(r));
 		}
 
+		/// <summary>
+		/// This implementation should not leak into the core Queryable code.  It is dependent on the specific protocol
+		/// used to communicate with the other partitions (HTTP over ReverseProxy), and should be hidden behind an interface.
+		/// </summary>
 		private static async Task<IEnumerable<JToken>> QueryPartitionAsync(Partition partition,
 			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
 		{
@@ -130,7 +134,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var response = await client.GetAsync(requestUri).ConfigureAwait(false);
 				var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-				return JsonConvert.DeserializeObject<IEnumerable<JToken>>(content);
+				var result = JsonConvert.DeserializeObject<ODataResult>(content);
+				return result.Value;
 			}
 		}
 

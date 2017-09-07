@@ -41,35 +41,50 @@ namespace Basic.UserSvc
 			return _next.Invoke(httpContext);
 		}
 
-		private Task InvokeQueryHandler(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager)
+		private async Task InvokeQueryHandler(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager)
 		{
-			var request = httpContext.Request;
+			try
+			{
+				var request = httpContext.Request;
+				var segments = request.Path.Value.Split(PathSplit, StringSplitOptions.RemoveEmptyEntries);
 
-			// Handle CORS.
-			AddAccessControlHeaders(httpContext.Request, httpContext.Response);
-			if (request.Method == HttpMethods.Options)
-				return HandleCORS(httpContext);
+				AddAccessControlHeaders(httpContext.Request, httpContext.Response);
 
-			// GET query/$metadata
-			if (request.Method == HttpMethods.Get && request.Path == "/query/$metadata")
-				return GetMetadataAsync(httpContext, serviceContext, stateManager);
-
-			var segments = request.Path.Value.Split(PathSplit, StringSplitOptions.RemoveEmptyEntries);
-
-			// GET query/<collection-name>
-			if (request.Method == HttpMethods.Get && segments.Length == 2)
-				return QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[1]);
-
-			// GET query/<partition-id>/<collection-name>
-			if (request.Method == HttpMethods.Get && segments.Length == 3 && Guid.TryParse(segments[1], out Guid partitionId))
-				return QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[2], partitionId);
-
-			// POST query
-			if (request.Method == HttpMethods.Post && segments.Length == 1)
-				return ExecuteAsync(httpContext, serviceContext, stateManager);
-
-			// Unknown queryable method.
-			return NotFound(httpContext);
+				if (request.Method == HttpMethods.Options)
+				{
+					// Handle CORS.
+					await HandleCORS(httpContext).ConfigureAwait(false);
+				}
+				else if (request.Method == HttpMethods.Get && request.Path == "/query/$metadata")
+				{
+					// GET query/$metadata
+					await GetMetadataAsync(httpContext, serviceContext, stateManager).ConfigureAwait(false);
+				}
+				else if (request.Method == HttpMethods.Get && segments.Length == 2)
+				{
+					// GET query/<collection-name>
+					await QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[1]).ConfigureAwait(false);
+				}
+				else if (request.Method == HttpMethods.Get && segments.Length == 3 && Guid.TryParse(segments[1], out Guid partitionId))
+				{
+					// GET query/<partition-id>/<collection-name>
+					await QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[2], partitionId).ConfigureAwait(false);
+				}
+				else if (request.Method == HttpMethods.Post && segments.Length == 1)
+				{
+					// POST query
+					await ExecuteAsync(httpContext, serviceContext, stateManager).ConfigureAwait(false);
+				}
+				else
+				{
+					// Unknown queryable method.
+					await NotFound(httpContext).ConfigureAwait(false);
+				}
+			}
+			catch (Exception e)
+			{
+				await HandleException(httpContext, e).ConfigureAwait(false);
+			}
 		}
 
 		private async Task GetMetadataAsync(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager)
@@ -94,7 +109,12 @@ namespace Basic.UserSvc
 			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
 
 			// Write the response.
-			string response = JsonConvert.SerializeObject(results);
+			var result = new ODataResult
+			{
+				ODataMetadata = "",
+				Value = results,
+			};
+			string response = JsonConvert.SerializeObject(result);
 			await httpContext.Response.WriteAsync(response).ConfigureAwait(false);
 		}
 
@@ -115,7 +135,12 @@ namespace Basic.UserSvc
 			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
 
 			// Write the response.
-			string response = JsonConvert.SerializeObject(results);
+			var result = new ODataResult
+			{
+				ODataMetadata = "",
+				Value = results,
+			};
+			string response = JsonConvert.SerializeObject(result);
 			await httpContext.Response.WriteAsync(response).ConfigureAwait(false);
 		}
 
@@ -165,8 +190,39 @@ namespace Basic.UserSvc
 		{
 			httpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
 			httpContext.Response.Headers.Add("X-ServiceFabric", "ResourceNotFound");
-
 			return Task.CompletedTask;
+		}
+
+		private Task BadRequest(HttpContext httpContext, string message)
+		{
+			httpContext.Response.ContentType = "application/json";
+			httpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+			return httpContext.Response.WriteAsync(JsonConvert.SerializeObject(message));
+		}
+
+		private Task InternalServerError(HttpContext httpContext, string message)
+		{
+			httpContext.Response.ContentType = "application/json";
+			httpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+			return httpContext.Response.WriteAsync(JsonConvert.SerializeObject(message));
+		}
+
+		private Task HandleException(HttpContext httpContext, Exception e)
+		{
+			if (e is ArgumentException)
+				return BadRequest(httpContext, e.Message);
+			if (e.InnerException is ArgumentException)
+				return BadRequest(httpContext, e.InnerException.Message);
+
+			//if (e is HttpException)
+			//	return Content((HttpStatusCode)((HttpException)e).GetHttpCode(), ((HttpException)e).Message);
+			//if (e.InnerException is HttpException)
+			//	return Content((HttpStatusCode)((HttpException)e.InnerException).GetHttpCode(), ((HttpException)e.InnerException).Message);
+
+			if (e is AggregateException)
+				return InternalServerError(httpContext, (e.InnerException ?? e).Message);
+
+			return InternalServerError(httpContext, e.Message);
 		}
 
 		private Task HandleCORS(HttpContext httpContext)

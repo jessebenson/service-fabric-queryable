@@ -10,6 +10,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		public string ODataMetadata { get; set; }
 
 		[JsonProperty("value")]
-		public IEnumerable<JObject> Value { get; set; }
+		public IEnumerable<JToken> Value { get; set; }
 	}
 }
