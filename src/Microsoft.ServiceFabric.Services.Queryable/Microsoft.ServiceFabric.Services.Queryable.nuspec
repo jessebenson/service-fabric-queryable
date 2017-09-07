@@ -13,6 +13,6 @@
     <description>Query support for Service Fabric stateful services.</description>
     <releaseNotes></releaseNotes>
     <copyright>Copyright 2017</copyright>
-    <tags>Microsoft ServiceFabric Query Queryable Viewer</tags>
+    <tags>Microsoft ServiceFabric Query Queryable Data Explorer</tags>
   </metadata>
 </package>
