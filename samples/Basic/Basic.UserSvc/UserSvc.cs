@@ -54,7 +54,7 @@ namespace Basic.UserSvc
 
 		protected override async Task RunAsync(CancellationToken cancellationToken)
 		{
-			var users = await StateManager.GetOrAddAsync<IReliableDictionary<string, UserProfile>>("users");
+			var users = await StateManager.GetOrAddAsync<IReliableDictionary<UserName, UserProfile>>("users");
 
 			for (int i = 0; i < 50; i++)
 			{
@@ -62,7 +62,11 @@ namespace Basic.UserSvc
 				{
 					var user = new UserProfile
 					{
-						Name = $"User {i}",
+						Name = new UserName
+						{
+							First = $"First{i}",
+							Last = $"Last{i}",
+						},
 						Email = $"user-{i}@example.com",
 						Age = 20 + i / 3,
 						Address = new Address
@@ -74,7 +78,7 @@ namespace Basic.UserSvc
 						},
 					};
 
-					await users.SetAsync(tx, user.Email, user, TimeSpan.FromSeconds(4), cancellationToken);
+					await users.SetAsync(tx, user.Name, user, TimeSpan.FromSeconds(4), cancellationToken);
 					await tx.CommitAsync();
 				}
 			}
