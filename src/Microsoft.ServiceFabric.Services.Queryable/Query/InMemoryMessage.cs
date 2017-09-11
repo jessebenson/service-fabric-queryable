@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.OData;
+﻿using Microsoft.OData;
 using System;
 using System.Collections.Generic;
 using System.IO;

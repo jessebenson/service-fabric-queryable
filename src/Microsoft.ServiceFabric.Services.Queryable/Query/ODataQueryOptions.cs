@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Web.Http.OData;
-using System.Web.Http.OData.Query;
+using System.Web.OData;
+using System.Web.OData.Query;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -25,23 +25,23 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					case "$filter":
 						if (!aggregate)
 						{
-							Filter = new FilterQueryOption(queryParameter.Value, context);
+							Filter = new FilterQueryOption(queryParameter.Value, context, null);
 						}
 						break;
 
 					case "$orderby":
-						OrderBy = new OrderByQueryOption(queryParameter.Value, context);
+						OrderBy = new OrderByQueryOption(queryParameter.Value, context, null);
 						break;
 
 					case "$select":
 						if (aggregate)
 						{
-							Select = new SelectExpandQueryOption(queryParameter.Value, string.Empty, context);
+							Select = new SelectExpandQueryOption(queryParameter.Value, string.Empty, context, null);
 						}
 						break;
 
 					case "$top":
-						Top = new TopQueryOption(queryParameter.Value, context);
+						Top = new TopQueryOption(queryParameter.Value, context, null);
 						break;
 
 					case "$format":

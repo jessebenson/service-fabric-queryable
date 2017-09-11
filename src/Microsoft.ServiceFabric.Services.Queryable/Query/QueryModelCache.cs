@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Web.Http.OData;
-using System.Web.Http.OData.Builder;
+using System.Web.OData;
+using System.Web.OData.Builder;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -18,9 +18,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		private static ODataQueryContext CreateQueryContext(Type type)
 		{
 			var builder = new ODataConventionModelBuilder();
-			builder.AddEntity(type);
+			builder.AddEntityType(type);
 			var model = builder.GetEdmModel();
-			return new ODataQueryContext(model, type);
+			return new ODataQueryContext(model, type, null);
 		}
 	}
 }

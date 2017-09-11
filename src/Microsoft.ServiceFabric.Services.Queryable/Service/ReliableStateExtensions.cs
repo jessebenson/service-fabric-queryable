@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.OData;
+﻿using Microsoft.OData;
 using Microsoft.ServiceFabric.Data;
 using Microsoft.ServiceFabric.Data.Collections;
 using Newtonsoft.Json;
@@ -14,13 +14,12 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Web.Http.OData.Builder;
-using System.Web.Http.OData.Query;
+using System.Web.OData.Builder;
+using System.Web.OData.Query;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
-	// TODO: this should be internal once QueryableMiddleware is ready and moved into Queryable assembly.
-	public static class ReliableStateExtensions
+	internal static class ReliableStateExtensions
 	{
 		private static readonly QueryModelCache QueryCache = new QueryModelCache();
 
@@ -35,7 +34,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var builder = new ODataConventionModelBuilder();
 			foreach (var queryable in await stateManager.GetQueryableTypes().ConfigureAwait(false))
 			{
-				var entity = builder.AddEntity(queryable.Value);
+				var entity = builder.AddEntityType(queryable.Value);
+				entity.HasKey(queryable.Value.GetProperty("Key"));
+				entity.HasKey(queryable.Value.GetProperty("PartitionId"));
 				builder.AddEntitySet(queryable.Key, entity);
 			}
 			var model = builder.GetEdmModel();
