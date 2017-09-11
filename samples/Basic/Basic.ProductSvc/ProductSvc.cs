@@ -60,7 +60,7 @@ namespace Basic.ProductSvc
 		protected override async Task RunAsync(CancellationToken cancellationToken)
 		{
 			var products = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Product>>("products");
-			var cars = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Cars>>("Cars");
+			var inventories = await this.StateManager.GetOrAddAsync<IReliableDictionary<string, Inventory>>("inventory");
 
 			int partitionIndex = await GetPartitionIndex().ConfigureAwait(false);
 			for (int i = 0; i < 10; i++)
@@ -68,10 +68,11 @@ namespace Basic.ProductSvc
 				using (var tx = StateManager.CreateTransaction())
 				{
 					var key = $"sku-{i}";
-					var product = new Product { Sku = key, Price = 10.0 + (i / 10.0), Quantity = i };
-					var car = new Cars { Model = key, Price = 8000 + (i / 10.0), HorsePower = i * 50, MPG = i + 30 };
+					var product = new Product { Sku = key, Name = $"Product {i}", Price = 10.0 + (i / 10.0) };
+					var inventory = new Inventory { Sku = key, AvailableQty = 1000 / (i+1), ReservedQty = 0, OrderedQty = i };
+
 					await products.SetAsync(tx, key, product, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
-					await cars.SetAsync(tx, key, car, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
+					await inventories.SetAsync(tx, key, inventory, TimeSpan.FromSeconds(4), cancellationToken).ConfigureAwait(false);
 
 					await tx.CommitAsync().ConfigureAwait(false);
 				}
