@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ApplicationManifest xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ApplicationTypeName="BasicAppType" ApplicationTypeVersion="1.0.0" xmlns="http://schemas.microsoft.com/2011/01/fabric">
   <Parameters>
+    <Parameter Name="Basic.CarSvc_PartitionCount" DefaultValue="1" />
+    <Parameter Name="Basic.CarSvc_MinReplicaSetSize" DefaultValue="3" />
+    <Parameter Name="Basic.CarSvc_TargetReplicaSetSize" DefaultValue="4" />
     <Parameter Name="Basic.ProductSvc_PartitionCount" DefaultValue="1" />
     <Parameter Name="Basic.ProductSvc_MinReplicaSetSize" DefaultValue="3" />
     <Parameter Name="Basic.ProductSvc_TargetReplicaSetSize" DefaultValue="4" />
@@ -11,6 +14,10 @@
   <!-- Import the ServiceManifest from the ServicePackage. The ServiceManifestName and ServiceManifestVersion
        should match the Name and Version attributes of the ServiceManifest element defined in the
        ServiceManifest.xml file. -->
+  <ServiceManifestImport>
+    <ServiceManifestRef ServiceManifestName="Basic.CarSvcPkg" ServiceManifestVersion="1.0.0" />
+    <ConfigOverrides />
+  </ServiceManifestImport>
   <ServiceManifestImport>
     <ServiceManifestRef ServiceManifestName="Basic.ProductSvcPkg" ServiceManifestVersion="1.0.0" />
     <ConfigOverrides />
@@ -25,6 +32,11 @@
          ServiceFabric PowerShell module.
 
          The attribute ServiceTypeName below must match the name defined in the imported ServiceManifest.xml file. -->
+    <Service Name="CarSvc">
+      <StatefulService ServiceTypeName="Basic.CarSvcType" TargetReplicaSetSize="[Basic.CarSvc_TargetReplicaSetSize]" MinReplicaSetSize="[Basic.CarSvc_MinReplicaSetSize]">
+        <UniformInt64Partition PartitionCount="[Basic.CarSvc_PartitionCount]" LowKey="-9223372036854775808" HighKey="9223372036854775807" />
+      </StatefulService>
+    </Service>
     <Service Name="ProductSvc">
       <StatefulService ServiceTypeName="Basic.ProductSvcType" TargetReplicaSetSize="[Basic.ProductSvc_TargetReplicaSetSize]" MinReplicaSetSize="[Basic.ProductSvc_MinReplicaSetSize]">
         <UniformInt64Partition PartitionCount="[Basic.ProductSvc_PartitionCount]" LowKey="-9223372036854775808" HighKey="9223372036854775807" />

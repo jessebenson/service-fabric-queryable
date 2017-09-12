@@ -31,6 +31,7 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Basic.CarSvc\Basic.CarSvc.csproj" />
     <ProjectReference Include="..\Basic.ProductSvc\Basic.ProductSvc.csproj" />
     <ProjectReference Include="..\Basic.UserSvc\Basic.UserSvc.csproj" />
   </ItemGroup>
