@@ -56,7 +56,7 @@ namespace Basic.UserSvc
 		{
 			var users = await StateManager.GetOrAddAsync<IReliableDictionary<UserName, UserProfile>>("users");
 
-			for (int i = 0; i < 50; i++)
+			for (int i = 0; i < 100000; i++)
 			{
 				using (var tx = StateManager.CreateTransaction())
 				{
