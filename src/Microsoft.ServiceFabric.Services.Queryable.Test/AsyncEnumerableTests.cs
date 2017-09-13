@@ -37,6 +37,22 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
 		}
 
 		[TestMethod]
+		public async Task SelectAsync_Empty()
+		{
+			var enumerable = AsyncEnumerable.EmptyAsync<int>();
+			Assert.AreEqual(0, await enumerable.SelectAsync(i => (double)i).CountAsync());
+		}
+
+		[TestMethod]
+		public async Task SelectAsync_ToDouble()
+		{
+			var enumerable = new int[] { 0, 1, 2, 3 }.AsAsyncEnumerable();
+			var expected = new double[] { 0, 2, 4, 6 }.AsAsyncEnumerable();
+			var selected = enumerable.SelectAsync(i => (double)i * 2);
+			Assert.IsTrue(await selected.SequenceEqualAsync(expected));
+		}
+
+		[TestMethod]
 		public async Task SequenceEqualAsync_Empty_Empty()
 		{
 			var first = AsyncEnumerable.EmptyAsync<int>();

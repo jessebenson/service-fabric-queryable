@@ -9,20 +9,20 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	public static class AsyncEnumerable
 	{
-		public static IAsyncEnumerable<T> AsAsyncEnumerable<T>(this IEnumerable<T> source)
+		public static IAsyncEnumerable<TSource> AsAsyncEnumerable<TSource>(this IEnumerable<TSource> source)
 		{
-			return new DefaultAsyncEnumerable<T>(source);
+			return new DefaultAsyncEnumerable<TSource>(source);
 		}
 
-		public static Task<bool> ContainsAsync<T>(this IAsyncEnumerable<T> source, T value, CancellationToken token = default(CancellationToken))
+		public static Task<bool> ContainsAsync<TSource>(this IAsyncEnumerable<TSource> source, TSource value, CancellationToken token = default(CancellationToken))
 		{
 			return ContainsAsync(source, value, null, token);
 		}
 
-		public static async Task<bool> ContainsAsync<T>(this IAsyncEnumerable<T> source, T value, IEqualityComparer<T> comparer, CancellationToken token = default(CancellationToken))
+		public static async Task<bool> ContainsAsync<TSource>(this IAsyncEnumerable<TSource> source, TSource value, IEqualityComparer<TSource> comparer, CancellationToken token = default(CancellationToken))
 		{
 			if (source == null) throw new ArgumentNullException(nameof(source));
-			if (comparer == null) comparer = EqualityComparer<T>.Default;
+			if (comparer == null) comparer = EqualityComparer<TSource>.Default;
 
 			using (var enumerator = source.GetAsyncEnumerator())
 			{
@@ -36,12 +36,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return false;
 		}
 
-		public static Task<int> CountAsync<T>(this IAsyncEnumerable<T> source, CancellationToken token = default(CancellationToken))
+		public static Task<int> CountAsync<TSource>(this IAsyncEnumerable<TSource> source, CancellationToken token = default(CancellationToken))
 		{
 			return CountAsync(source, _ => true, token);
 		}
 
-		public static async Task<int> CountAsync<T>(this IAsyncEnumerable<T> source, Func<T, bool> predicate, CancellationToken token = default(CancellationToken))
+		public static async Task<int> CountAsync<TSource>(this IAsyncEnumerable<TSource> source, Func<TSource, bool> predicate, CancellationToken token = default(CancellationToken))
 		{
 			if (source == null) throw new ArgumentNullException(nameof(source));
 			if (predicate == null) throw new ArgumentNullException(nameof(predicate));
@@ -62,21 +62,29 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return count;
 		}
 
-		public static IAsyncEnumerable<T> EmptyAsync<T>()
+		public static IAsyncEnumerable<TSource> EmptyAsync<TSource>()
 		{
-			return Enumerable.Empty<T>().AsAsyncEnumerable();
+			return Enumerable.Empty<TSource>().AsAsyncEnumerable();
 		}
 
-		public static Task<bool> SequenceEqualAsync<T>(this IAsyncEnumerable<T> first, IAsyncEnumerable<T> second, CancellationToken token = default(CancellationToken))
+		public static IAsyncEnumerable<TResult> SelectAsync<TSource, TResult>(this IAsyncEnumerable<TSource> source, Func<TSource, TResult> selector)
+		{
+			if (source == null) throw new ArgumentNullException(nameof(source));
+			if (selector == null) throw new ArgumentNullException(nameof(selector));
+
+			return new SelectAsyncEnumerable<TSource, TResult>(source, selector);
+		}
+
+		public static Task<bool> SequenceEqualAsync<TSource>(this IAsyncEnumerable<TSource> first, IAsyncEnumerable<TSource> second, CancellationToken token = default(CancellationToken))
 		{
 			return SequenceEqualAsync(first, second, null, token);
 		}
 
-		public static async Task<bool> SequenceEqualAsync<T>(this IAsyncEnumerable<T> first, IAsyncEnumerable<T> second, IEqualityComparer<T> comparer, CancellationToken token = default(CancellationToken))
+		public static async Task<bool> SequenceEqualAsync<TSource>(this IAsyncEnumerable<TSource> first, IAsyncEnumerable<TSource> second, IEqualityComparer<TSource> comparer, CancellationToken token = default(CancellationToken))
 		{
 			if (first == null) throw new ArgumentNullException(nameof(first));
 			if (second == null) throw new ArgumentNullException(nameof(second));
-			if (comparer == null) comparer = EqualityComparer<T>.Default;
+			if (comparer == null) comparer = EqualityComparer<TSource>.Default;
 
 			using (var e1 = first.GetAsyncEnumerator())
 			using (var e2 = second.GetAsyncEnumerator())
@@ -94,49 +102,97 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return true;
 		}
 
-		public static IAsyncEnumerable<T> SkipAsync<T>(this IAsyncEnumerable<T> source, int count)
+		public static IAsyncEnumerable<TSource> SkipAsync<TSource>(this IAsyncEnumerable<TSource> source, int count)
 		{
 			if (source == null) throw new ArgumentNullException(nameof(source));
 
-			return new SkipAsyncEnumerable<T>(source, count);
+			return new SkipAsyncEnumerable<TSource>(source, count);
 		}
 
-		public static IAsyncEnumerable<T> TakeAsync<T>(this IAsyncEnumerable<T> source, int count)
+		public static IAsyncEnumerable<TSource> TakeAsync<TSource>(this IAsyncEnumerable<TSource> source, int count)
 		{
 			if (source == null) throw new ArgumentNullException(nameof(source));
 
-			return new TakeAsyncEnumerable<T>(source, count);
+			return new TakeAsyncEnumerable<TSource>(source, count);
 		}
 
-		public static IAsyncEnumerable<T> WhereAsync<T>(this IAsyncEnumerable<T> source, Func<T, bool> predicate)
+		public static IAsyncEnumerable<TSource> WhereAsync<TSource>(this IAsyncEnumerable<TSource> source, Func<TSource, bool> predicate)
 		{
 			if (source == null) throw new ArgumentNullException(nameof(source));
 			if (predicate == null) throw new ArgumentNullException(nameof(predicate));
 
-			return new WhereAsyncEnumerable<T>(source, predicate);
+			return new WhereAsyncEnumerable<TSource>(source, predicate);
 		}
 
-		private sealed class SkipAsyncEnumerable<T> : AsyncEnumerableBase<T>
+		private sealed class SelectAsyncEnumerable<TSource, TResult> : IAsyncEnumerable<TResult>
 		{
+			private readonly IAsyncEnumerable<TSource> _source;
+			private readonly Func<TSource, TResult> _selector;
+
+			public SelectAsyncEnumerable(IAsyncEnumerable<TSource> source, Func<TSource, TResult> selector)
+			{
+				_source = source;
+				_selector = selector;
+			}
+
+			public IAsyncEnumerator<TResult> GetAsyncEnumerator()
+			{
+				return new SelectAsyncEnumerator<TSource, TResult>(_source.GetAsyncEnumerator(), _selector);
+			}
+		}
+
+		private sealed class SelectAsyncEnumerator<TSource, TResult> : IAsyncEnumerator<TResult>
+		{
+			private readonly IAsyncEnumerator<TSource> _source;
+			private readonly Func<TSource, TResult> _selector;
+
+			public SelectAsyncEnumerator(IAsyncEnumerator<TSource> source, Func<TSource, TResult> selector)
+			{
+				_source = source;
+				_selector = selector;
+			}
+
+			public TResult Current => _selector(_source.Current);
+
+			public void Dispose()
+			{
+				_source.Dispose();
+			}
+
+			public Task<bool> MoveNextAsync(CancellationToken token)
+			{
+				return _source.MoveNextAsync(token);
+			}
+
+			public void Reset()
+			{
+				_source.Reset();
+			}
+		}
+
+		private sealed class SkipAsyncEnumerable<TSource> : IAsyncEnumerable<TSource>
+		{
+			private readonly IAsyncEnumerable<TSource> _source;
 			private readonly int _count;
 
-			public SkipAsyncEnumerable(IAsyncEnumerable<T> source, int count) : base(source)
+			public SkipAsyncEnumerable(IAsyncEnumerable<TSource> source, int count)
 			{
+				_source = source;
 				_count = count;
 			}
 
-			public override IAsyncEnumerator<T> GetAsyncEnumerator()
+			public IAsyncEnumerator<TSource> GetAsyncEnumerator()
 			{
-				return new SkipAsyncEnumerator<T>(_source.GetAsyncEnumerator(), _count);
+				return new SkipAsyncEnumerator<TSource>(_source.GetAsyncEnumerator(), _count);
 			}
 		}
 
-		private sealed class SkipAsyncEnumerator<T> : AsyncEnumeratorBase<T>
+		private sealed class SkipAsyncEnumerator<TSource> : AsyncEnumeratorBase<TSource>
 		{
 			private readonly int _count;
 			private int _index = 0;
 
-			public SkipAsyncEnumerator(IAsyncEnumerator<T> source, int count) : base(source)
+			public SkipAsyncEnumerator(IAsyncEnumerator<TSource> source, int count) : base(source)
 			{
 				_count = count;
 			}
@@ -156,27 +212,29 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private sealed class TakeAsyncEnumerable<T> : AsyncEnumerableBase<T>
+		private sealed class TakeAsyncEnumerable<TSource> : IAsyncEnumerable<TSource>
 		{
+			private readonly IAsyncEnumerable<TSource> _source;
 			private readonly int _count;
 
-			public TakeAsyncEnumerable(IAsyncEnumerable<T> source, int count) : base(source)
+			public TakeAsyncEnumerable(IAsyncEnumerable<TSource> source, int count)
 			{
+				_source = source;
 				_count = count;
 			}
 
-			public override IAsyncEnumerator<T> GetAsyncEnumerator()
+			public IAsyncEnumerator<TSource> GetAsyncEnumerator()
 			{
-				return new TakeAsyncEnumerator<T>(_source.GetAsyncEnumerator(), _count);
+				return new TakeAsyncEnumerator<TSource>(_source.GetAsyncEnumerator(), _count);
 			}
 		}
 
-		private sealed class TakeAsyncEnumerator<T> : AsyncEnumeratorBase<T>
+		private sealed class TakeAsyncEnumerator<TSource> : AsyncEnumeratorBase<TSource>
 		{
 			private readonly int _count;
 			private int _index = 0;
 
-			public TakeAsyncEnumerator(IAsyncEnumerator<T> source, int count) : base(source)
+			public TakeAsyncEnumerator(IAsyncEnumerator<TSource> source, int count) : base(source)
 			{
 				_count = count;
 			}
@@ -199,26 +257,28 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private sealed class WhereAsyncEnumerable<T> : AsyncEnumerableBase<T>
+		private sealed class WhereAsyncEnumerable<TSource> : IAsyncEnumerable<TSource>
 		{
-			private readonly Func<T, bool> _predicate;
+			private readonly IAsyncEnumerable<TSource> _source;
+			private readonly Func<TSource, bool> _predicate;
 
-			public WhereAsyncEnumerable(IAsyncEnumerable<T> source, Func<T, bool> predicate) : base(source)
+			public WhereAsyncEnumerable(IAsyncEnumerable<TSource> source, Func<TSource, bool> predicate)
 			{
+				_source = source;
 				_predicate = predicate;
 			}
 
-			public override IAsyncEnumerator<T> GetAsyncEnumerator()
+			public IAsyncEnumerator<TSource> GetAsyncEnumerator()
 			{
-				return new WhereAsyncEnumerator<T>(_source.GetAsyncEnumerator(), _predicate);
+				return new WhereAsyncEnumerator<TSource>(_source.GetAsyncEnumerator(), _predicate);
 			}
 		}
 
-		private sealed class WhereAsyncEnumerator<T> : AsyncEnumeratorBase<T>
+		private sealed class WhereAsyncEnumerator<TSource> : AsyncEnumeratorBase<TSource>
 		{
-			private readonly Func<T, bool> _predicate;
+			private readonly Func<TSource, bool> _predicate;
 
-			public WhereAsyncEnumerator(IAsyncEnumerator<T> source, Func<T, bool> predicate) : base(source)
+			public WhereAsyncEnumerator(IAsyncEnumerator<TSource> source, Func<TSource, bool> predicate) : base(source)
 			{
 				_predicate = predicate;
 			}
@@ -235,28 +295,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 		}
 
-		private abstract class AsyncEnumerableBase<T> : IAsyncEnumerable<T>
+		private abstract class AsyncEnumeratorBase<TSource> : IAsyncEnumerator<TSource>
 		{
-			protected readonly IAsyncEnumerable<T> _source;
+			protected readonly IAsyncEnumerator<TSource> _source;
 
-			public AsyncEnumerableBase(IAsyncEnumerable<T> source)
+			public AsyncEnumeratorBase(IAsyncEnumerator<TSource> source)
 			{
 				_source = source;
 			}
 
-			public abstract IAsyncEnumerator<T> GetAsyncEnumerator();
-		}
-
-		private abstract class AsyncEnumeratorBase<T> : IAsyncEnumerator<T>
-		{
-			protected readonly IAsyncEnumerator<T> _source;
-
-			public AsyncEnumeratorBase(IAsyncEnumerator<T> source)
-			{
-				_source = source;
-			}
-
-			public T Current => _source.Current;
+			public TSource Current => _source.Current;
 
 			public void Dispose()
 			{
