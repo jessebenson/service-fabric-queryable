@@ -49,6 +49,28 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return count;
 		}
 
+		public static Task<bool> ContainsAsync<T>(this IAsyncEnumerable<T> source, T value, CancellationToken token = default(CancellationToken))
+		{
+			return ContainsAsync(source, value, null, token);
+		}
+
+		public static async Task<bool> ContainsAsync<T>(this IAsyncEnumerable<T> source, T value, IEqualityComparer<T> comparer, CancellationToken token = default(CancellationToken))
+		{
+			if (source == null) throw new ArgumentNullException(nameof(source));
+			if (comparer == null) comparer = EqualityComparer<T>.Default;
+
+			using (var enumerator = source.GetAsyncEnumerator())
+			{
+				while (await enumerator.MoveNextAsync(token).ConfigureAwait(false))
+				{
+					if (comparer.Equals(enumerator.Current, value))
+						return true;
+				}
+			}
+
+			return false;
+		}
+
 		public static IAsyncEnumerable<T> WhereAsync<T>(this IAsyncEnumerable<T> source, Func<T, bool> predicate)
 		{
 			if (source == null) throw new ArgumentNullException(nameof(source));
