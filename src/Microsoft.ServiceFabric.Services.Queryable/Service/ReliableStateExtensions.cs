@@ -19,8 +19,7 @@ using System.Web.Http.OData.Query;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
-	// TODO: this should be internal once QueryableMiddleware is ready and moved into Queryable assembly.
-	public static class ReliableStateExtensions
+	internal static class ReliableStateExtensions
 	{
 		private static readonly QueryModelCache QueryCache = new QueryModelCache();
 

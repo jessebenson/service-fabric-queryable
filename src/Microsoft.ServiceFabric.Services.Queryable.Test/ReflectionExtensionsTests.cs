@@ -4,7 +4,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace Microsoft.ServiceFabric.Services.Queryable.Test
 {
 	[TestClass]
-	public class ReflectionExtensionsTest
+	public class ReflectionExtensionsTests
 	{
 		[TestMethod]
 		public void ImplementsGenericType_NonInterface_Throws()
