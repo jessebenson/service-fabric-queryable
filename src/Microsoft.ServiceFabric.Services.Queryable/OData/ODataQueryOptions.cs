@@ -9,6 +9,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	internal class ODataQueryOptions
 	{
+		/// <summary>
+		/// Maximum number of items the query is allowed to return.
+		/// </summary>
+		private const int MaxTop = 100;
+
 		public FilterQueryOption Filter { get; set; }
 		public OrderByQueryOption OrderBy { get; set; }
 		public SelectExpandQueryOption Select { get; set; }
@@ -53,10 +58,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				}
 			}
 
-			// Restrict query to return at most 100 items.
-			if (Top == null || Top.Value > 100)
+			if (Top == null || Top.Value > MaxTop)
 			{
-				Top = new TopQueryOption("100", context);
+				Top = new TopQueryOption($"{MaxTop}", context);
 			}
 		}
 

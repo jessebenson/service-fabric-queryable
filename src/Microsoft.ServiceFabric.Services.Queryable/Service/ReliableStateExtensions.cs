@@ -76,7 +76,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var results = queryResults.SelectMany(r => r);
 
 			// Run the aggregation query to get the final results (e.g. for top, orderby, project).
-			if (query.Any())
+			if (queryResults.Length > 1)
 			{
 				var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
 				var entityType = reliableState.GetEntityType();
@@ -110,13 +110,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				var results = await reliableState.GetAsyncEnumerable(tx, stateManager, partitionId, cancellationToken).ConfigureAwait(false);
 
 				// Filter the data.
-				if (query.Any())
-				{
-					var entityType = reliableState.GetEntityType();
-					results = ApplyQuery(results, entityType, query, aggregate: false);
-				}
+				var entityType = reliableState.GetEntityType();
+				results = ApplyQuery(results, entityType, query, aggregate: false);
 
+				// Convert to json.
 				var json = await results.SelectAsync(r => JObject.FromObject(r)).AsEnumerable().ConfigureAwait(false);
+
 				await tx.CommitAsync().ConfigureAwait(false);
 
 				// Return the filtered data as json.
