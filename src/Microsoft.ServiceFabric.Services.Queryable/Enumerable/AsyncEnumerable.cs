@@ -26,6 +26,23 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return new DefaultAsyncEnumerable<TSource>(source);
 		}
 
+		public static IAsyncEnumerable<TResult> CastAsync<TSource, TResult>(this IAsyncEnumerable<TSource> source)
+		{
+			IAsyncEnumerable<TResult> typedSource = source as IAsyncEnumerable<TResult>;
+			if (typedSource != null) return typedSource;
+			if (source == null) throw new ArgumentNullException(nameof(source));
+
+			return new SelectAsyncEnumerable<TSource, TResult>(source, obj => (TResult)Convert.ChangeType(obj, typeof(TResult)));
+		}
+
+		public static IAsyncEnumerable<object> CastAsync<TSource>(this IAsyncEnumerable<TSource> source, Type resultType)
+		{
+			if (source == null) throw new ArgumentNullException(nameof(source));
+			if (resultType == null) throw new ArgumentNullException(nameof(source));
+
+			return new SelectAsyncEnumerable<TSource, object>(source, obj => Convert.ChangeType(obj, resultType));
+		}
+
 		public static Task<bool> ContainsAsync<TSource>(this IAsyncEnumerable<TSource> source, TSource value, CancellationToken token = default(CancellationToken))
 		{
 			return ContainsAsync(source, value, null, token);

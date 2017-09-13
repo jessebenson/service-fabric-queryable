@@ -57,6 +57,20 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
 		}
 
 		[TestMethod]
+		public async Task FilterQueryOption_Cast()
+		{
+			IAsyncEnumerable<object> users = GetUsers(20, 30);
+			var context = GetQueryContext();
+
+			var query = new FilterQueryOption("Age ge 20", context);
+			var settings = new ODataQuerySettings { HandleNullPropagation = HandleNullPropagationOption.True };
+			var results = query.ApplyTo(users, settings);
+
+			Assert.AreEqual(10, await results.CountAsync());
+			Assert.IsTrue(await results.SequenceEqualAsync(users));
+		}
+
+		[TestMethod]
 		public void OrderByQueryOption_NotImplemented()
 		{
 			var users = GetUsers(20, 30);

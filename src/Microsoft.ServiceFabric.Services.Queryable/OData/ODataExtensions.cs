@@ -12,8 +12,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 	{
 		public static IAsyncEnumerable<T> ApplyTo<T>(this FilterQueryOption query, IAsyncEnumerable<T> source, ODataQuerySettings settings)
 		{
+			Type elementType = query.Context.ElementClrType;
+
 			// Apply the filter on an empty enumerable to compile the filter expression.
-			var emptySource = Enumerable.Empty<T>();
+			var emptySource = Array.CreateInstance(elementType, 0);
 			var queryable = query.ApplyTo(emptySource.AsQueryable(), settings);
 
 			// Validate the queryable was processed as we expect.
@@ -31,7 +33,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var predicate = predicateExpression.Compile();
 
 			// Pass the filter delegate to the async where LINQ extension.
-			MethodInfo whereMethod = ExpressionHelperMethods.AsyncWhereGeneric.MakeGenericMethod(typeof(T));
+			MethodInfo whereMethod = ExpressionHelperMethods.AsyncWhereGeneric.MakeGenericMethod(elementType);
 			return (IAsyncEnumerable<T>)whereMethod.Invoke(null, new object[] { source, predicate });
 		}
 
