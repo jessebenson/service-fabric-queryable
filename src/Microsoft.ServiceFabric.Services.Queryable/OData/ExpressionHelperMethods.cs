@@ -1,10 +1,8 @@
 ﻿using Microsoft.ServiceFabric.Data;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {

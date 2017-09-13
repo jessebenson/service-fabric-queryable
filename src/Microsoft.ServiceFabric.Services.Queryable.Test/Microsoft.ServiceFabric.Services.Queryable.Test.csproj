@@ -103,8 +103,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="EnumerableAsyncExtensionsTests.cs" />
-    <Compile Include="ExpressionTests.cs" />
+    <Compile Include="AsyncEnumerableTests.cs" />
+    <Compile Include="ODataExtensionsTests.cs" />
     <Compile Include="Mock\ITestInterface.cs" />
     <Compile Include="Mock\TestClass.cs" />
     <Compile Include="ReflectionExtensionsTests.cs" />
