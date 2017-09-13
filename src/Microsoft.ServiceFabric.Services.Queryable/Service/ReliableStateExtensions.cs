@@ -159,14 +159,14 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="operations">Operations (add/update/delete) to perform against collections in the partition.</param>
 		/// <returns>A list of status codes indicating success/failure of the operations.</returns>
-		public static async Task<List<DmlResult>> ExecuteAsync(this IReliableStateManager stateManager, EntityOperation<JToken, JToken>[] operations)
+		public static async Task<List<EntityOperationResult>> ExecuteAsync(this IReliableStateManager stateManager, EntityOperation<JToken, JToken>[] operations)
 		{
-			var results = new List<DmlResult>();
+			var results = new List<EntityOperationResult>();
 			using (var tx = stateManager.CreateTransaction())
 			{
 				foreach (var operation in operations)
 				{
-					var result = new DmlResult
+					var result = new EntityOperationResult
 					{
 						PartitionId = operation.PartitionId,
 						Collection = operation.Collection,

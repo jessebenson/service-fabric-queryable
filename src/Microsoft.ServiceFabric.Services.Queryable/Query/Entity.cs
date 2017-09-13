@@ -2,7 +2,7 @@
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
-	public class Entity<TKey, TValue>
+	internal class Entity<TKey, TValue>
 	{
 		public Guid PartitionId { get; set; }
 
@@ -11,18 +11,5 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		public TValue Value { get; set; }
 
 		public string Etag { get; set; }
-	}
-
-	public enum Operation
-	{
-		Add,
-		Update,
-		Delete,
-	}
-
-	public sealed class EntityOperation<TKey, TValue> : Entity<TKey, TValue>
-	{
-		public Operation Operation { get; set; }
-		public string Collection { get; set; }
 	}
 }

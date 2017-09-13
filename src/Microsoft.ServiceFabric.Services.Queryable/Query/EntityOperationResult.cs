@@ -4,7 +4,7 @@ using System;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
-	public class DmlResult
+	internal sealed class EntityOperationResult
 	{
 		[JsonProperty("Collection")]
 		public string Collection { get; set; }
