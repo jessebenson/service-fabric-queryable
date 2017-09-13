@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.ServiceFabric.Data;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web.Http.OData;
@@ -71,6 +72,29 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			if (Select != null)
 			{
 				result = Select.ApplyTo(result, settings);
+			}
+
+			return result;
+		}
+
+		public IAsyncEnumerable<T> ApplyTo<T>(IAsyncEnumerable<T> enumerable, ODataQuerySettings settings)
+		{
+			IAsyncEnumerable<T> result = enumerable;
+			if (Filter != null)
+			{
+				result = Filter.ApplyTo(result, settings);
+			}
+			if (OrderBy != null)
+			{
+				result = OrderBy.ApplyTo(result, settings);
+			}
+			if (Top != null)
+			{
+				result = Top.ApplyTo(result, settings);
+			}
+			if (Select != null)
+			{
+				result = Select.ApplyTo<T>(result, settings);
 			}
 
 			return result;

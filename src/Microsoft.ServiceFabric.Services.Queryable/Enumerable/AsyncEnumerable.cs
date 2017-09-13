@@ -9,6 +9,18 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 {
 	public static class AsyncEnumerable
 	{
+		public static async Task<IEnumerable<TSource>> AsEnumerable<TSource>(this IAsyncEnumerable<TSource> source, CancellationToken token = default(CancellationToken))
+		{
+			var results = new List<TSource>();
+			using (var enumerator = source.GetAsyncEnumerator())
+			{
+				while (await enumerator.MoveNextAsync(token).ConfigureAwait(false))
+					results.Add(enumerator.Current);
+			}
+
+			return results;
+		}
+
 		public static IAsyncEnumerable<TSource> AsAsyncEnumerable<TSource>(this IEnumerable<TSource> source)
 		{
 			return new DefaultAsyncEnumerable<TSource>(source);
