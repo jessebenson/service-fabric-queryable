@@ -52,6 +52,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						throw new ArgumentException($"'{queryParameter.Key}' option is not supported");
 				}
 			}
+
+			// Restrict query to return at most 100 items.
+			if (Top == null || Top.Value > 100)
+			{
+				Top = new TopQueryOption("100", context);
+			}
 		}
 
 		public IQueryable ApplyTo(IQueryable queryable, ODataQuerySettings settings)
