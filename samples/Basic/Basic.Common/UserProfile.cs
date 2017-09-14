@@ -20,6 +20,13 @@ namespace Basic.Common
 		{
 			return this.CompareTo(other) == 0;
 		}
+
+		public override int GetHashCode()
+		{
+			int h0 = First?.GetHashCode() ?? 0;
+			int h1 = Last?.GetHashCode() ?? 0;
+			return h0 ^ h1;
+		}
 	}
 
 	public sealed class UserProfile

@@ -245,14 +245,17 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 			// Read the existing value.
 			MethodInfo tryGetMethod = dictionaryType.GetMethod("TryGetValueAsync", new[] { typeof(ITransaction), keyType, typeof(LockMode) });
-			var readResult = await ((Task<ConditionalValue<object>>)tryGetMethod.Invoke(dictionary, new[] { tx, key, LockMode.Update })).ConfigureAwait(false);
+			var tryGetTask = (Task)tryGetMethod.Invoke(dictionary, new[] { tx, key, LockMode.Update });
+			await tryGetTask.ConfigureAwait(false);
+			var tryGetResult = tryGetTask.GetPropertyValue<object>("Result");
 
 			// Only update the value if it exists.
-			if (!readResult.HasValue)
+			if (!tryGetResult.GetPropertyValue<bool>("HasValue"))
 				return HttpStatusCode.NotFound;
 
 			// Validate the ETag.
-			var currentEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(readResult.Value)).ToString();
+			var currentValue = tryGetResult.GetPropertyValue<object>("Value");
+			var currentEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(currentValue)).ToString();
 			if (currentEtag != operation.Etag)
 				return HttpStatusCode.PreconditionFailed;
 
@@ -269,19 +272,21 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var keyType = dictionary.GetKeyType();
 			var valueType = dictionary.GetValueType();
 			var key = operation.Key.ToObject(keyType);
-			var value = operation.Value.ToObject(valueType);
 			var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
 
 			// Read the existing value.
 			MethodInfo tryGetMethod = dictionaryType.GetMethod("TryGetValueAsync", new[] { typeof(ITransaction), keyType, typeof(LockMode) });
-			var readResult = await ((Task<ConditionalValue<object>>)tryGetMethod.Invoke(dictionary, new[] { tx, key, LockMode.Update })).ConfigureAwait(false);
+			var tryGetTask = (Task)tryGetMethod.Invoke(dictionary, new[] { tx, key, LockMode.Update });
+			await tryGetTask.ConfigureAwait(false);
+			var tryGetResult = tryGetTask.GetPropertyValue<object>("Result");
 
-			// Only delete the value if it exists.
-			if (!readResult.HasValue)
+			// Only update the value if it exists.
+			if (!tryGetResult.GetPropertyValue<bool>("HasValue"))
 				return HttpStatusCode.NotFound;
 
 			// Validate the ETag.
-			var currentEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(readResult.Value)).ToString();
+			var currentValue = tryGetResult.GetPropertyValue<object>("Value");
+			var currentEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(currentValue)).ToString();
 			if (currentEtag != operation.Etag)
 				return HttpStatusCode.PreconditionFailed;
 
