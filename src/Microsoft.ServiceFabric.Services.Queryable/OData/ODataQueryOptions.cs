@@ -87,9 +87,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return result;
 		}
 
-		public IAsyncEnumerable<T> ApplyTo<T>(IAsyncEnumerable<T> enumerable, ODataQuerySettings settings)
+		public IAsyncEnumerable<object> ApplyTo(IAsyncEnumerable<object> enumerable, ODataQuerySettings settings)
 		{
-			IAsyncEnumerable<T> result = enumerable;
+			IAsyncEnumerable<object> result = enumerable;
 			if (Filter != null)
 			{
 				result = Filter.ApplyTo(result, settings);
@@ -104,7 +104,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			}
 			if (Select != null)
 			{
-				result = Select.ApplyTo<T>(result, settings);
+				result = Select.ApplyTo<object>(result, settings);
 			}
 
 			return result;

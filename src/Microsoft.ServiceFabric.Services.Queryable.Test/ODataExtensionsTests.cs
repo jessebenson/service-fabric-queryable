@@ -1,7 +1,9 @@
 ﻿using Microsoft.ServiceFabric.Data;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData;
@@ -82,14 +84,29 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
 		}
 
 		[TestMethod]
-		public void SelectExpandQueryOption_NotImplemented()
+		public async Task SelectExpandQueryOption_NameAge()
 		{
 			var users = GetUsers(20, 30);
 			var context = GetQueryContext();
 
 			var query = new SelectExpandQueryOption("Name,Age", null, context);
 			var settings = new ODataQuerySettings { HandleNullPropagation = HandleNullPropagationOption.True };
-			Assert.ThrowsException<NotImplementedException>(() => query.ApplyTo<UserProfile>(users, settings));
+			var results = query.ApplyTo<UserProfile>(users, settings);
+
+			Assert.AreEqual(10, await results.CountAsync());
+
+			// Validate the properties got selected correctly.
+			using (var u = users.GetAsyncEnumerator())
+			using (var r = results.GetAsyncEnumerator())
+			{
+				var token = CancellationToken.None;
+				while (await u.MoveNextAsync(token) && await r.MoveNextAsync(token))
+				{
+					var obj = JObject.FromObject(r.Current);
+					Assert.AreEqual(u.Current.Age, obj.Property("Age").Value.Value<int>());
+					Assert.AreEqual(u.Current.Name, obj.Property("Name").Value.Value<string>());
+				}
+			}
 		}
 
 		[TestMethod]
