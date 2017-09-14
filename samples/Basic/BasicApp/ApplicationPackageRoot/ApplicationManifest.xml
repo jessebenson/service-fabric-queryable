@@ -7,7 +7,6 @@
     <Parameter Name="Basic.ProductSvc_PartitionCount" DefaultValue="1" />
     <Parameter Name="Basic.ProductSvc_MinReplicaSetSize" DefaultValue="3" />
     <Parameter Name="Basic.ProductSvc_TargetReplicaSetSize" DefaultValue="4" />
-    <Parameter Name="Basic.UserSvc_PartitionCount" DefaultValue="1" />
     <Parameter Name="Basic.UserSvc_MinReplicaSetSize" DefaultValue="3" />
     <Parameter Name="Basic.UserSvc_TargetReplicaSetSize" DefaultValue="4" />
   </Parameters>
@@ -44,7 +43,7 @@
     </Service>
     <Service Name="UserSvc">
       <StatefulService ServiceTypeName="Basic.UserSvcType" TargetReplicaSetSize="[Basic.UserSvc_TargetReplicaSetSize]" MinReplicaSetSize="[Basic.UserSvc_MinReplicaSetSize]">
-        <UniformInt64Partition PartitionCount="[Basic.UserSvc_PartitionCount]" LowKey="-9223372036854775808" HighKey="9223372036854775807" />
+        <SingletonPartition />
       </StatefulService>
     </Service>
   </DefaultServices>

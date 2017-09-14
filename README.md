@@ -1,72 +1,46 @@
 # Microsoft.ServiceFabric.Services.Queryable
 
-Enable query support for your stateful services in Service Fabric via the OData protocol.
+Enable Data Explorer and query support for your stateful services in Service Fabric via the OData protocol.
 
-Derive from **QueryableService** from your stateful services, expose the required HTTP APIs, and start querying your reliable collections.  If your service is named 'fabric:/MyApp/MyService' and your reliable dictionary is named 'my-dictionary', try queries like:
+Add the ODataQueryable middleware to your stateful services (using ASP.NET Core stateful services), ensure Reverse Proxy is enabled, and start querying your reliable collections.  If your service is named 'fabric:/MyApp/MyService' and your reliable dictionary is named 'my-dictionary', try queries like:
 
-Get OData metadata about a stateful service:
-- ```GET http://localhost/query/MyApp/MyService/$metadata```
+Get OData metadata about a single partition stateful service:
+- ```GET http://localhost:19081/MyApp/MyService/query/$metadata```
+
+Get OData metadata about a partitioned stateful service:
+- ```GET http://localhost:19081/MyApp/MyService/query/$metadata?PartitionKind=Int64Range&PartitionKey=0```
 
 Get 10 items from the reliable dictionary.
-- ```GET http://localhost/query/MyApp/MyService/my-dictionary?$top=10```
+- ```GET http://localhost:19081/MyApp/MyService/query/my-dictionary?$top=10```
 
 Get 10 items with Quantity between 2 and 4, inclusively.
-- ```GET http://localhost/query/MyApp/MyService/my-dictionary?$top=10&$filter=Quantity ge 2 and Quantity le 4```
+- ```GET http://localhost:19081/MyApp/MyService/query/my-dictionary?$top=10&$filter=Quantity ge 2 and Quantity le 4```
 
 Get 10 items, returning only the Price and Quantity properties, sorted by Price in descending order.
-- ```GET http://localhost/query/MyApp/MyService/my-dictionary?$top=10&$select=Price,Quantity&$orderby=Price desc```
+- ```GET http://localhost:19081/MyApp/MyService/query/my-dictionary?$top=10&$select=Price,Quantity&$orderby=Price desc```
 
 ## Getting Started
 
-1. Add the **Microsoft.ServiceFabric.Services.Queryable** nuget package.
+1. Create a stateful ASP.NET Core services.
 
-2. Derive your stateful service from **QueryableService** instead of StatefulService, and expose a service replica listener.  This will implement the **IQueryableService** service remoting interface to expose OData query capabilities over the reliable collections in your service.
+2. Add the **Microsoft.ServiceFabric.Services.Queryable** nuget package.
 
-```csharp
-using Microsoft.ServiceFabric.Services.Queryable;
-using Microsoft.ServiceFabric.Services.Remoting.Runtime;
-
-internal sealed class ProductSvc : QueryableService
-{
-	protected override IEnumerable<ServiceReplicaListener> CreateServiceReplicaListeners()
-	{
-		return new[]
-		{
-			new ServiceReplicaListener(this.CreateServiceRemotingListener),
-		};
-	}
-}
-```
-
-3. Add an ApiController that derives from **QueryableController**, and implement the two required methods.
+3. Add the **ODataQueryable** middleware to your Startup.cs.  This will intercept calls to the /query endpoint to expose OData query capabilities over the reliable collections in your service.
 
 ```csharp
 using Microsoft.ServiceFabric.Services.Queryable;
 
-public class QueryController : QueryableController
+public class Startup
 {
-	/// <summary>
-	/// Returns OData metadata about the queryable reliable collections and types in the application/service.
-	/// </summary>
-	[HttpGet]
-	[Route("query/{application}/{service}/$metadata")]
-	public Task<IHttpActionResult> GetMetadata(string application, string service)
+	public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
 	{
-		return base.GetMetadataAsync(application, service);
-	}
-
-	/// <summary>
-	/// Queries the given reliable collection in the queryable service using the OData query language.
-	/// </summary>
-	[HttpGet]
-	[Route("query/{application}/{service}/{collection}")]
-	public Task<IHttpActionResult> Query(string application, string service, string collection)
-	{
-		return base.QueryAsync(application, service, collection);
+		...
+		**app.UseODataQueryable();**
+		...
 	}
 }
 ```
 
 ## Samples
 
-- [Basic application with a stateless front-end and partitioned stateful Products service](samples/Basic)
+- [Basic application with several stateful services](samples/Basic)
