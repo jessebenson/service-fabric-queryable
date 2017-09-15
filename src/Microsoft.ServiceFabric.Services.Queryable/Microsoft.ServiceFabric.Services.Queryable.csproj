@@ -2,6 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>2.7.198.0</Version>
+    <AssemblyVersion>2.7.198.0</AssemblyVersion>
+    <FileVersion>2.7.198.0</FileVersion>
+    <Description>Query support to enable the Data Explorer in Service Fabric Explorer.</Description>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
