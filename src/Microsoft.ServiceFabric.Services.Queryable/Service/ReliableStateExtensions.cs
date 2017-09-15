@@ -76,14 +76,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var results = queryResults.SelectMany(r => r);
 
 			// Run the aggregation query to get the final results (e.g. for top, orderby, project).
-			if (queryResults.Length > 1)
-			{
-				var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
-				var entityType = reliableState.GetEntityType();
-				var objects = results.Select(r => r.ToObject(entityType));
-				var queryResult = ApplyQuery(objects, entityType, query, aggregate: true);
-				results = queryResult.Select(q => JObject.FromObject(q));
-			}
+			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			var entityType = reliableState.GetEntityType();
+			var objects = results.Select(r => r.ToObject(entityType));
+			var queryResult = ApplyQuery(objects, entityType, query, aggregate: true);
+			results = queryResult.Select(q => JObject.FromObject(q));
 
 			// Return the filtered data as json.
 			return results;
