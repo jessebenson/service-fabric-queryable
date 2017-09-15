@@ -132,7 +132,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 			string endpoint = await GetPartitionEndpointAsync(context, partition);
 			if (string.IsNullOrEmpty(endpoint))
-				return Enumerable.Empty<JToken>();
+				throw new QueryException(HttpStatusCode.NotFound, $"Primary endpoint for partition '{partition.PartitionInformation.Id}' not found.");
 
 			var endpoints = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(endpoint);
 			endpoint = endpoints["Endpoints"][""];
@@ -141,7 +141,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				string requestUri = $"{endpoint}/query/{partition.PartitionInformation.Id}/{collection}?{GetQueryParameters(query)}";
 				var response = await client.GetAsync(requestUri).ConfigureAwait(false);
-				var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+				var content = await response.EnsureSuccessStatusCode().Content.ReadAsStringAsync().ConfigureAwait(false);
 
 				var result = JsonConvert.DeserializeObject<ODataResult>(content);
 				return result.Value;
@@ -315,10 +315,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		private static async Task<HttpStatusCode> ExecuteDeleteAsync(ITransaction tx, IReliableState dictionary, EntityOperation<JToken, JToken> operation)
 		{
 			// Get type information.
-			var keyType = dictionary.GetKeyType();
-			var valueType = dictionary.GetValueType();
+			Type keyType = dictionary.GetKeyType();
+			Type valueType = dictionary.GetValueType();
 			var key = operation.Key.ToObject(keyType);
-			var dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
+			Type dictionaryType = typeof(IReliableDictionary<,>).MakeGenericType(keyType, valueType);
 
 			// Read the existing value.
 			MethodInfo tryGetMethod = dictionaryType.GetMethod("TryGetValueAsync", new[] { typeof(ITransaction), keyType, typeof(LockMode) });
@@ -337,7 +337,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				throw new QueryException(HttpStatusCode.PreconditionFailed, "The value has changed on the server.");
 
 			// Delete from reliable dictionary.
-			var tryDeleteMethod = dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType });
+			MethodInfo tryDeleteMethod = dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType });
 			await ((Task)tryDeleteMethod.Invoke(dictionary, new[] { tx, key })).ConfigureAwait(false);
 
 			return HttpStatusCode.OK;

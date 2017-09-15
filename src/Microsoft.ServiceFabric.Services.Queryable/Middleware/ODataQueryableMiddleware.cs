@@ -160,7 +160,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			{
 				string requestUri = $"{endpoint}/query/{partitionId}/{collection}?{GetQueryParameters(httpContext)}";
 				var response = await client.GetAsync(requestUri).ConfigureAwait(false);
-				var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+				var content = await response.EnsureSuccessStatusCode().Content.ReadAsStringAsync().ConfigureAwait(false);
 
 				httpContext.Response.ContentType = response.Content.Headers.ContentType.MediaType;
 				httpContext.Response.StatusCode = (int)response.StatusCode;
@@ -188,6 +188,17 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			await httpContext.Response.WriteAsync(response).ConfigureAwait(false);
 		}
 
+		private Task StatusCode(HttpContext httpContext, HttpStatusCode status, string message)
+		{
+			httpContext.Response.StatusCode = (int)status;
+			if (status == HttpStatusCode.NotFound)
+				httpContext.Response.Headers.Add("X-ServiceFabric", "ResourceNotFound");
+			if (!string.IsNullOrEmpty(message))
+				return httpContext.Response.WriteAsync(JsonConvert.SerializeObject(message));
+
+			return Task.CompletedTask;
+		}
+
 		private Task NotFound(HttpContext httpContext)
 		{
 			httpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -211,15 +222,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 		private Task HandleException(HttpContext httpContext, Exception e)
 		{
+			if (e is QueryException)
+				return StatusCode(httpContext, ((QueryException)e).Status, e.Message);
+			if (e.InnerException is QueryException)
+				return StatusCode(httpContext, ((QueryException)e.InnerException).Status, e.InnerException.Message);
+
 			if (e is ArgumentException)
 				return BadRequest(httpContext, e.Message);
 			if (e.InnerException is ArgumentException)
 				return BadRequest(httpContext, e.InnerException.Message);
-
-			//if (e is HttpException)
-			//	return Content((HttpStatusCode)((HttpException)e).GetHttpCode(), ((HttpException)e).Message);
-			//if (e.InnerException is HttpException)
-			//	return Content((HttpStatusCode)((HttpException)e.InnerException).GetHttpCode(), ((HttpException)e.InnerException).Message);
 
 			if (e is AggregateException)
 				return InternalServerError(httpContext, (e.InnerException ?? e).Message);
