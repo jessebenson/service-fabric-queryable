@@ -197,9 +197,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var results = new List<EntityOperationResult>();
 			using (var tx = stateManager.CreateTransaction())
 			{
+				bool commit = true;
 				foreach (var operation in operations)
 				{
 					HttpStatusCode status = HttpStatusCode.BadRequest;
+					string description = null;
 
 					try
 					{
@@ -220,9 +222,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 							status = await ExecuteDeleteAsync(tx, dictionary, operation).ConfigureAwait(false);
 						}
 					}
-					catch (ArgumentException)
+					catch (QueryException e)
+					{
+						status = e.Status;
+						description = e.Message;
+					}
+					catch (ArgumentException e)
 					{
 						status = HttpStatusCode.BadRequest;
+						description = e.Message;
 					}
 					catch (Exception)
 					{
@@ -236,10 +244,19 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 						Collection = operation.Collection,
 						Key = operation.Key,
 						Status = (int)status,
+						Description = description,
 					});
+
+					// If any operation failed, abort the transaction.
+					if (!status.IsSuccessStatusCode())
+						commit = false;
 				}
 
-				await tx.CommitAsync().ConfigureAwait(false);
+				// Commit or abort the transaction.
+				if (commit)
+					await tx.CommitAsync().ConfigureAwait(false);
+				else
+					tx.Abort();
 			}
 
 			return results;
@@ -257,8 +274,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			// Add to reliable dictionary.
 			MethodInfo tryAddMethod = dictionaryType.GetMethod("TryAddAsync", new[] { typeof(ITransaction), keyType, valueType });
 			bool success = await ((Task<bool>)tryAddMethod.Invoke(dictionary, new[] { tx, key, value })).ConfigureAwait(false);
+			if (!success)
+				throw new QueryException(HttpStatusCode.Conflict, "Key already exists.");
 
-			return success ? HttpStatusCode.OK : HttpStatusCode.Conflict;
+			return HttpStatusCode.OK;
 		}
 
 		private static async Task<HttpStatusCode> ExecuteUpdateAsync(ITransaction tx, IReliableState dictionary, EntityOperation<JToken, JToken> operation)
@@ -278,13 +297,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 			// Only update the value if it exists.
 			if (!tryGetResult.GetPropertyValue<bool>("HasValue"))
-				return HttpStatusCode.NotFound;
+				throw new QueryException(HttpStatusCode.NotFound, "Key not found.");
 
 			// Validate the ETag.
 			var currentValue = tryGetResult.GetPropertyValue<object>("Value");
 			var currentEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(currentValue)).ToString();
 			if (currentEtag != operation.Etag)
-				return HttpStatusCode.PreconditionFailed;
+				throw new QueryException(HttpStatusCode.PreconditionFailed, "The value has changed on the server.");
 
 			// Update in reliable dictionary.
 			MethodInfo setMethod = dictionaryType.GetMethod("SetAsync", new[] { typeof(ITransaction), keyType, valueType });
@@ -309,13 +328,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 			// Only update the value if it exists.
 			if (!tryGetResult.GetPropertyValue<bool>("HasValue"))
-				return HttpStatusCode.NotFound;
+				throw new QueryException(HttpStatusCode.NotFound, "Key not found.");
 
 			// Validate the ETag.
 			var currentValue = tryGetResult.GetPropertyValue<object>("Value");
 			var currentEtag = CRC64.ToCRC64(JsonConvert.SerializeObject(currentValue)).ToString();
 			if (currentEtag != operation.Etag)
-				return HttpStatusCode.PreconditionFailed;
+				throw new QueryException(HttpStatusCode.PreconditionFailed, "The value has changed on the server.");
 
 			// Delete from reliable dictionary.
 			var tryDeleteMethod = dictionaryType.GetMethod("TryRemoveAsync", new[] { typeof(ITransaction), keyType });

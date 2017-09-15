@@ -17,5 +17,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 		[JsonProperty("Status")]
 		public int Status { get; set; }
+
+		[JsonProperty("Description")]
+		public string Description { get; set; }
 	}
 }
