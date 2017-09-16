@@ -1,17 +1,17 @@
 # Basic QueryableService example
 
-BasicApp is a Service Fabric application with a stateless front-end service (Basic.WebSvc) and a partitioned stateful service (Basic.ProductSvc).
+BasicApp is a Service Fabric application with several stateful services (Basic.CarSvc, Basic.ProductSvc, Basic.UserSvc).
 
-The products stateful service has an IReliableDictionary<string, Product> collection, and it derives from QueryableService (which is a StatefulService) to enable query support.
+The products stateful service has an IReliableDictionary<string, Product> collection and an IReliableDictionary<string, Inventory> collection.  It uses the OData Queryable middleware to enable query support.
 
-The web stateless service exposes a Web API for querying any QueryableService in the cluster, by adding an ApiController that derives from QueryableController and implementing two Web APIs.
+The users stateful service has an IReliableDictionary<UserName, UserProfile> collection to demonstrate more complex keys and values.  The cars stateful service does not use the Queryable middleware.
 
 # Running the sample
 
-1) Build and deploy the 'BasicApp' Service Fabric application.  The stateless service 'Basic.WebSvc' will listening on port 80 for queries.
+1) Build and deploy the 'BasicApp' Service Fabric application.  The stateful services can be queried using Service Fabric's reverse proxy on port 19081.
 
-2) Perform a GET request for http://localhost/query/BasicApp/ProductSvc/$metadata to see the OData metadata about the 'ProductSvc' stateful service.  This will show the reliable collections and their value types.
+2) Perform a GET request for http://localhost:19081/BasicApp/UserSvc/query/$metadata to see the OData metadata about the 'UserSvc' stateful service.  This will show the reliable collections and their entity types.
 
-3) Perform a GET request for http://localhost/query/BasicApp/ProductSvc/products?$top=5 to see 5 Product values from the service.
+3) Perform a GET request for http://localhost:19081/BasicApp/UserSvc/query/users?$top=5 to see a sample of 5 values from the service.
 
-4) Perform GET requests against http://localhost/query/BasicApp/ProductSvc/products?<OData-query> using the OData query language ($top, $filter, $orderby, $select).  For example:  "http://localhost/query/BasicApp/ProductSvc/products?$top=10&$filter=Quantity ge 2 and Quantity le 4&$select=Sku,Price"
+4) Perform GET requests against http://localhost:19081/BasicApp/UserSvc/query/users?<OData-query> using the OData query language ($top, $filter, $orderby, $select).
