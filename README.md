@@ -1,6 +1,8 @@
 # Microsoft.ServiceFabric.Services.Queryable
 
-Enable Data Explorer and query support for your stateful services in Service Fabric via the OData protocol.
+Enable Data Explorer and query support for your stateful services in Service Fabric via the OData protocol.  I am actively working on integrating the Data Explorer into the Service Fabric Explorer.  Below is a preview (not yet available) of what it will look like:
+
+![](images/data-explorer-query.png)
 
 Add the ODataQueryable middleware to your stateful services (using ASP.NET Core stateful services), ensure Reverse Proxy is enabled, and start querying your reliable collections.  If your service is named 'fabric:/MyApp/MyService' and your reliable dictionary is named 'my-dictionary', try queries like:
 
