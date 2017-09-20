@@ -64,7 +64,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
 		{
 			// Get the list of partitions (excluding the executing partition).
-			var partitions = await GetPartitionsAsync(context).ConfigureAwait(false);
+			var partitions = await StatefulServiceUtils.GetPartitionsAsync(context).ConfigureAwait(false);
 
 			// Query all service partitions concurrently.
 			var remoteQueries = partitions.Select(p => QueryPartitionAsync(p, context, collection, query, cancellationToken));
@@ -127,60 +127,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		private static async Task<IEnumerable<JToken>> QueryPartitionAsync(Partition partition,
 			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
 		{
-			string endpoint = await GetPartitionEndpointAsync(context, partition);
-			if (string.IsNullOrEmpty(endpoint))
-				throw new QueryException(HttpStatusCode.NotFound, $"Primary endpoint for partition '{partition.PartitionInformation.Id}' not found.");
+			string endpoint = await StatefulServiceUtils.GetPartitionEndpointAsync(context, partition).ConfigureAwait(false);
+			string content = await StatefulServiceUtils.QueryPartitionAsync(endpoint, partition.PartitionInformation.Id, collection, query).ConfigureAwait(false);
 
-			var endpoints = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(endpoint);
-			endpoint = endpoints["Endpoints"][""];
-
-			using (var client = new HttpClient())
-			{
-				string requestUri = $"{endpoint}/query/{partition.PartitionInformation.Id}/{collection}?{GetQueryParameters(query)}";
-				var response = await client.GetAsync(requestUri).ConfigureAwait(false);
-				var content = await response.EnsureSuccessStatusCode().Content.ReadAsStringAsync().ConfigureAwait(false);
-
-				var result = JsonConvert.DeserializeObject<ODataResult>(content);
-				return result.Value;
-			}
-		}
-
-		private static async Task<string> GetPartitionEndpointAsync(StatefulServiceContext serviceContext, Partition partition)
-		{
-			using (var client = new FabricClient())
-			{
-				if (partition.PartitionInformation.Kind == ServicePartitionKind.Int64Range)
-					return await GetPartitionEndpointAsync(client, serviceContext, (Int64RangePartitionInformation)partition.PartitionInformation).ConfigureAwait(false);
-				if (partition.PartitionInformation.Kind == ServicePartitionKind.Named)
-					return await GetPartitionEndpointAsync(client, serviceContext, (NamedPartitionInformation)partition.PartitionInformation).ConfigureAwait(false);
-				if (partition.PartitionInformation.Kind == ServicePartitionKind.Singleton)
-					return await GetPartitionEndpointAsync(client, serviceContext, (SingletonPartitionInformation)partition.PartitionInformation).ConfigureAwait(false);
-
-				return null;
-			}
-		}
-
-		private static async Task<string> GetPartitionEndpointAsync(FabricClient client, StatefulServiceContext serviceContext, Int64RangePartitionInformation partition)
-		{
-			var resolvedPartition = await client.ServiceManager.ResolveServicePartitionAsync(serviceContext.ServiceName, partition.LowKey).ConfigureAwait(false);
-			return resolvedPartition?.GetEndpoint()?.Address;
-		}
-
-		private static async Task<string> GetPartitionEndpointAsync(FabricClient client, StatefulServiceContext serviceContext, NamedPartitionInformation partition)
-		{
-			var resolvedPartition = await client.ServiceManager.ResolveServicePartitionAsync(serviceContext.ServiceName, partition.Name).ConfigureAwait(false);
-			return resolvedPartition?.GetEndpoint()?.Address;
-		}
-
-		private static async Task<string> GetPartitionEndpointAsync(FabricClient client, StatefulServiceContext serviceContext, SingletonPartitionInformation partition)
-		{
-			var resolvedPartition = await client.ServiceManager.ResolveServicePartitionAsync(serviceContext.ServiceName).ConfigureAwait(false);
-			return resolvedPartition?.GetEndpoint()?.Address;
-		}
-
-		private static string GetQueryParameters(IEnumerable<KeyValuePair<string, string>> query)
-		{
-			return string.Join("&", query.Select(p => $"{p.Key}={p.Value}"));
+			var result = JsonConvert.DeserializeObject<ODataResult>(content);
+			return result.Value;
 		}
 
 		/// <summary>
@@ -470,15 +421,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				// TODO: only set the ETag if the query selects this object.
 				Etag = CRC64.ToCRC64(JsonConvert.SerializeObject(kvp.Value)).ToString(),
 			});
-		}
-
-		private static async Task<IEnumerable<Partition>> GetPartitionsAsync(StatefulServiceContext context)
-		{
-			using (var client = new FabricClient())
-			{
-				var partitions = await client.QueryManager.GetPartitionListAsync(context.ServiceName).ConfigureAwait(false);
-				return partitions.Where(p => p.PartitionInformation.Id != context.PartitionId);
-			}
 		}
 
 		/// <summary>

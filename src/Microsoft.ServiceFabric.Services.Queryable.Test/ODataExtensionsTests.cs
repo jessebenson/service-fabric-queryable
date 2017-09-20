@@ -73,17 +73,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
 		}
 
 		[TestMethod]
-		public void OrderByQueryOption_NotImplemented()
-		{
-			var users = GetUsers(20, 30);
-			var context = GetQueryContext();
-
-			var query = new OrderByQueryOption("Age", context);
-			var settings = new ODataQuerySettings { HandleNullPropagation = HandleNullPropagationOption.True };
-			Assert.ThrowsException<NotImplementedException>(() => query.ApplyTo(users, settings));
-		}
-
-		[TestMethod]
 		public async Task SelectExpandQueryOption_NameAge()
 		{
 			var users = GetUsers(20, 30);

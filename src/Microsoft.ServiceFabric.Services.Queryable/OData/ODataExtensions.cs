@@ -39,7 +39,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 		public static IAsyncEnumerable<T> ApplyTo<T>(this OrderByQueryOption query, IAsyncEnumerable<T> source, ODataQuerySettings settings)
 		{
-			throw new NotImplementedException();
+			return source; // Not yet implemented.
 		}
 
 		public static IAsyncEnumerable<object> ApplyTo<T>(this SelectExpandQueryOption query, IAsyncEnumerable<T> source, ODataQuerySettings settings)
