@@ -21,7 +21,7 @@
     <None Include="ApplicationParameters\Cloud.xml" />
     <None Include="ApplicationParameters\Local.1Node.xml" />
     <None Include="ApplicationParameters\Local.5Node.xml" />
-    <None Include="PublishProfiles\ignite-data-explorer.xml" />
+    <None Include="PublishProfiles\live-data-explorer.xml" />
     <None Include="PublishProfiles\data-explorer.xml" />
     <None Include="PublishProfiles\Cloud.xml" />
     <None Include="PublishProfiles\Local.1Node.xml" />

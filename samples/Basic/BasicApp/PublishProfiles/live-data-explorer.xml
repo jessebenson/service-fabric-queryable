@@ -20,11 +20,11 @@
                                     AzureActiveDirectory="true"
                                     ServerCertThumbprint="0123456789012345678901234567890123456789" />
   -->
-  <ClusterConnectionParameters ConnectionEndpoint="ignite-data-explorer.southcentralus.cloudapp.azure.com:19000"
+  <ClusterConnectionParameters ConnectionEndpoint="live-data-explorer.southcentralus.cloudapp.azure.com:19000"
                                X509Credential="true"
-                               ServerCertThumbprint="‎AE98E92CC20B4417A048595A11F70FF73BFD726F"
+                               ServerCertThumbprint="‎FD872B20515C9FBE190B68C88A9E442FECE44F5B"
                                FindType="FindByThumbprint"
-                               FindValue="‎AE98E92CC20B4417A048595A11F70FF73BFD726F"
+                               FindValue="‎FD872B20515C9FBE190B68C88A9E442FECE44F5B"
                                StoreLocation="CurrentUser"
                                StoreName="My" />
   <ApplicationParameterFile Path="..\ApplicationParameters\Cloud.xml" />
