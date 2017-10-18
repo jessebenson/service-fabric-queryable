@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>2.7.198.0</Version>
-    <AssemblyVersion>2.7.198.0</AssemblyVersion>
-    <FileVersion>2.7.198.0</FileVersion>
+    <Version>2.7.221.0</Version>
+    <AssemblyVersion>2.7.221.0</AssemblyVersion>
+    <FileVersion>2.7.221.0</FileVersion>
     <Description>Query support to enable the Data Explorer in Service Fabric Explorer.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
@@ -13,8 +13,8 @@
     <PackageReference Include="Microsoft.AspNet.WebApi.OData" Version="5.7.0" />
     <PackageReference Include="Microsoft.AspNetCore" Version="1.1.2" />
     <PackageReference Include="Microsoft.Data.OData" Version="5.8.2" />
-    <PackageReference Include="Microsoft.ServiceFabric" Version="5.7.198" />
-    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="2.7.198" />
+    <PackageReference Include="Microsoft.ServiceFabric" Version="5.7.221" />
+    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="2.7.221" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
   </ItemGroup>
 
