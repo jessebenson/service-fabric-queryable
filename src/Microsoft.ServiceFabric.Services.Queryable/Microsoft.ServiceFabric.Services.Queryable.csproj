@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>2.8.211.0</Version>
-    <AssemblyVersion>2.8.211.0</AssemblyVersion>
-    <FileVersion>2.8.211.0</FileVersion>
+    <Version>2.8.219.0</Version>
+    <AssemblyVersion>2.8.219.0</AssemblyVersion>
+    <FileVersion>2.8.219.0</FileVersion>
     <Description>Query support to enable the Data Explorer in Service Fabric Explorer.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageTags>Azure, ServiceFabric, Microsoft, Fabric, Data Explorer, Query</PackageTags>
@@ -14,9 +14,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNet.WebApi.OData" Version="5.7.0" />
     <PackageReference Include="Microsoft.AspNetCore" Version="1.1.2" />
-    <PackageReference Include="Microsoft.Data.OData" Version="5.8.2" />
-    <PackageReference Include="Microsoft.ServiceFabric" Version="6.0.211" />
-    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="2.8.211" />
+    <PackageReference Include="Microsoft.Data.OData" Version="5.8.3" />
+    <PackageReference Include="Microsoft.ServiceFabric" Version="6.0.219" />
+    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="2.8.219" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
   </ItemGroup>
 
