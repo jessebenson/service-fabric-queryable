@@ -10,8 +10,8 @@ The users stateful service has an IReliableDictionary<UserName, UserProfile> col
 
 1) Build and deploy the 'BasicApp' Service Fabric application.  The stateful services can be queried using Service Fabric's reverse proxy on port 19081.
 
-2) Perform a GET request for http://localhost:19081/BasicApp/UserSvc/query/$metadata to see the OData metadata about the 'UserSvc' stateful service.  This will show the reliable collections and their entity types.
+2) Perform a GET request for http://localhost:19081/BasicApp/UserSvc/$query/$metadata to see the OData metadata about the 'UserSvc' stateful service.  This will show the reliable collections and their entity types.
 
-3) Perform a GET request for http://localhost:19081/BasicApp/UserSvc/query/users?$top=5 to see a sample of 5 values from the service.
+3) Perform a GET request for http://localhost:19081/BasicApp/UserSvc/$query/users?$top=5 to see a sample of 5 values from the service.
 
-4) Perform GET requests against http://localhost:19081/BasicApp/UserSvc/query/users?<OData-query> using the OData query language ($top, $filter, $orderby, $select).
+4) Perform GET requests against http://localhost:19081/BasicApp/UserSvc/$query/users?<OData-query> using the OData query language ($top, $filter, $orderby, $select).

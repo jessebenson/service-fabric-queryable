@@ -7,11 +7,9 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Fabric;
-using System.Fabric.Query;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,7 +30,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		public Task Invoke(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager)
 		{
 			// Queryable handlers.
-			if (httpContext.Request.Path.StartsWithSegments("/query"))
+			if (httpContext.Request.Path.StartsWithSegments("/$query"))
 			{
 				return InvokeQueryHandler(httpContext, serviceContext, stateManager);
 			}
@@ -54,24 +52,24 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					// Handle CORS.
 					await HandleCORS(httpContext).ConfigureAwait(false);
 				}
-				else if (request.Method == HttpMethods.Get && request.Path == "/query/$metadata")
+				else if (request.Method == HttpMethods.Get && request.Path == "/$query/$metadata")
 				{
-					// GET query/$metadata
+					// GET $query/$metadata
 					await GetMetadataAsync(httpContext, serviceContext, stateManager).ConfigureAwait(false);
 				}
 				else if (request.Method == HttpMethods.Get && segments.Length == 2)
 				{
-					// GET query/<collection-name>
+					// GET $query/<collection-name>
 					await QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[1]).ConfigureAwait(false);
 				}
 				else if (request.Method == HttpMethods.Get && segments.Length == 3 && Guid.TryParse(segments[1], out Guid partitionId))
 				{
-					// GET query/<partition-id>/<collection-name>
+					// GET $query/<partition-id>/<collection-name>
 					await QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[2], partitionId).ConfigureAwait(false);
 				}
 				else if (request.Method == HttpMethods.Post && segments.Length == 1)
 				{
-					// POST query
+					// POST $query
 					await ExecuteAsync(httpContext, serviceContext, stateManager).ConfigureAwait(false);
 				}
 				else

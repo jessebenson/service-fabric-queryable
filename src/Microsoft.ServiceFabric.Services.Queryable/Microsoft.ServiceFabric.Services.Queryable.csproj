@@ -2,13 +2,14 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>2.8.219.0</Version>
-    <AssemblyVersion>2.8.219.0</AssemblyVersion>
-    <FileVersion>2.8.219.0</FileVersion>
+    <Version>2.8.219.2</Version>
+    <AssemblyVersion>2.8.219.2</AssemblyVersion>
+    <FileVersion>2.8.219.2</FileVersion>
     <Description>Query support to enable the Data Explorer in Service Fabric Explorer.</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageTags>Azure, ServiceFabric, Microsoft, Fabric, Data Explorer, Query</PackageTags>
     <PackageProjectUrl>https://github.com/jessebenson/service-fabric-queryable</PackageProjectUrl>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>

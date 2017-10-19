@@ -17,7 +17,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 		public static async Task<string> QueryPartitionAsync(string endpoint, Guid partitionId, string collection, IEnumerable<KeyValuePair<string, string>> query)
 		{
-			string requestUri = $"{endpoint}/query/{partitionId}/{collection}?{GetQueryParameters(query)}";
+			string requestUri = $"{endpoint}/$query/{partitionId}/{collection}?{GetQueryParameters(query)}";
 			var response = await HttpClient.GetAsync(requestUri).ConfigureAwait(false);
 			return await response.EnsureSuccessStatusCode().Content.ReadAsStringAsync().ConfigureAwait(false);
 		}

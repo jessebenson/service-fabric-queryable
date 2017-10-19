@@ -7,19 +7,19 @@ Enable Data Explorer and query support for your stateful services in Service Fab
 Add the ODataQueryable middleware to your stateful services (using ASP.NET Core stateful services), ensure Reverse Proxy is enabled, and start querying your reliable collections.  If your service is named 'fabric:/MyApp/MyService' and your reliable dictionary is named 'my-dictionary', try queries like:
 
 Get OData metadata about a single partition stateful service:
-- ```GET http://localhost:19081/MyApp/MyService/query/$metadata```
+- ```GET http://localhost:19081/MyApp/MyService/$query/$metadata```
 
 Get OData metadata about a partitioned stateful service:
-- ```GET http://localhost:19081/MyApp/MyService/query/$metadata?PartitionKind=Int64Range&PartitionKey=0```
+- ```GET http://localhost:19081/MyApp/MyService/$query/$metadata?PartitionKind=Int64Range&PartitionKey=0```
 
 Get 10 items from the reliable dictionary.
-- ```GET http://localhost:19081/MyApp/MyService/query/my-dictionary?$top=10```
+- ```GET http://localhost:19081/MyApp/MyService/$query/my-dictionary?$top=10```
 
 Get 10 items with Quantity between 2 and 4, inclusively.
-- ```GET http://localhost:19081/MyApp/MyService/query/my-dictionary?$top=10&$filter=Quantity ge 2 and Quantity le 4```
+- ```GET http://localhost:19081/MyApp/MyService/$query/my-dictionary?$top=10&$filter=Quantity ge 2 and Quantity le 4```
 
 Get 10 items, returning only the Price and Quantity properties, sorted by Price in descending order.
-- ```GET http://localhost:19081/MyApp/MyService/query/my-dictionary?$top=10&$select=Price,Quantity&$orderby=Price desc```
+- ```GET http://localhost:19081/MyApp/MyService/$query/my-dictionary?$top=10&$select=Price,Quantity&$orderby=Price desc```
 
 ## Getting Started
 
@@ -27,7 +27,7 @@ Get 10 items, returning only the Price and Quantity properties, sorted by Price 
 
 2. Add the **Microsoft.ServiceFabric.Services.Queryable** nuget package.
 
-3. Add the **ODataQueryable** middleware to your Startup.cs.  This will intercept calls to the /query endpoint to expose OData query capabilities over the reliable collections in your service.
+3. Add the **ODataQueryable** middleware to your Startup.cs.  This will intercept calls to the /$query endpoint to expose OData query capabilities over the reliable collections in your service.
 
 ```csharp
 using Microsoft.ServiceFabric.Services.Queryable;
