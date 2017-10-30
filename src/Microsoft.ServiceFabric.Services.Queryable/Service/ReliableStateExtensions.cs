@@ -360,6 +360,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			if (!state.ImplementsGenericType(typeof(IReliableDictionary<,>)))
 				throw new ArgumentException(nameof(state));
 
+			// Get the correct Type before getting generic arguments.
 			return state.GetType().GetGenericArguments()[0];
 		}
 
@@ -373,6 +374,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			if (!state.ImplementsGenericType(typeof(IReliableDictionary<,>)))
 				throw new ArgumentException(nameof(state));
 
+			// Get the correct Type before getting generic arguments.
 			return state.GetType().GetGenericArguments()[1];
 		}
 
