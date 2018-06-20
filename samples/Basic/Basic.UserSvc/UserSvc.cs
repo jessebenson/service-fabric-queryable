@@ -13,6 +13,7 @@ using Microsoft.ServiceFabric.Services.Communication.AspNetCore;
 using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
 using Basic.Common;
+using Microsoft.ServiceFabric.Data.Indexing.Persistent;
 
 namespace Basic.UserSvc
 {
@@ -55,8 +56,11 @@ namespace Basic.UserSvc
 		protected override async Task RunAsync(CancellationToken cancellationToken)
 		{
 			var users = await StateManager.GetOrAddAsync<IReliableDictionary<UserName, UserProfile>>("users");
+            var indexed_users = await StateManager.GetOrAddIndexedAsync<UserName, UserProfile>("indexed_users",
+                 FilterableIndex<UserName, UserProfile, string>.CreateQueryableInstance("Email"),
+                   FilterableIndex<UserName, UserProfile, int>.CreateQueryableInstance("Age"));
 
-			for (int i = 0; i < 100000; i++)
+            for (int i = 0; i < 10000; i++)
 			{
 				using (var tx = StateManager.CreateTransaction())
 				{
@@ -78,8 +82,16 @@ namespace Basic.UserSvc
 						},
 					};
 
+                    //System.Runtime.Serialization.Formatters.Binary.BinaryFormatter bf = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                    //MemoryStream ms = new MemoryStream();
+                    //byte[] Array;
+                    //bf.Serialize(ms, user);
+                    //Array = ms.ToArray();
+                    //Console.Write("Object size:" + Array.Length);
+
 					await users.SetAsync(tx, user.Name, user, TimeSpan.FromSeconds(4), cancellationToken);
-					await tx.CommitAsync();
+                    await indexed_users.SetAsync(tx, user.Name, user, TimeSpan.FromSeconds(4), cancellationToken);
+                    await tx.CommitAsync();
 				}
 			}
 		}

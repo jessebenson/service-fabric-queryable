@@ -19,6 +19,11 @@
     <PackageReference Include="Microsoft.ServiceFabric" Version="6.2.274" />
     <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.1.274" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
+    <PackageReference Include="System.Linq.Dynamic" Version="1.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\service-fabric-indexing\src\Microsoft.ServiceFabric.Data.Indexing.Persistent\Microsoft.ServiceFabric.Data.Indexing.Persistent.csproj" />
   </ItemGroup>
 
 </Project>

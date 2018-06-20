@@ -29,6 +29,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Microsoft.ServiceFabric.Services.Queryable\Microsoft.ServiceFabric.Services.Queryable.csproj" />
     <ProjectReference Include="..\Basic.Common\Basic.Common.csproj" />
   </ItemGroup>
 

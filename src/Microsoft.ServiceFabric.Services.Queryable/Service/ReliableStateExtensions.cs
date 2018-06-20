@@ -17,6 +17,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Query;
+using Microsoft.Data.OData.Query.SemanticAst;
+using Microsoft.Data.Edm;
+using Microsoft.ServiceFabric.Data.Indexing.Persistent;
+using System.Linq.Expressions;
+using System.Linq.Dynamic;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -98,33 +103,264 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		public static async Task<IEnumerable<JToken>> QueryPartitionAsync(this IReliableStateManager stateManager,
 			string collection, IEnumerable<KeyValuePair<string, string>> query, Guid partitionId, CancellationToken cancellationToken)
 		{
-			// Find the reliable state.
-			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			// Find the reliable state (boilerplate)
+			IReliableState reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+            var entityType = reliableState.GetEntityType(); // Type Information about the dictionary
 
-			using (var tx = stateManager.CreateTransaction())
+            // Generate an ODataQuery Object
+            var context = QueryCache.GetQueryContext(entityType);
+            ODataQueryOptions queryOptions = new ODataQueryOptions(query, context, aggregate: false);
+
+            // We check whether this ODataQuery contains a '$filter eq' that we might be able to index on
+            ConditionalValue<Tuple<string, object>> isFilterable = IsFilterableQuery(queryOptions);
+
+            // If it does have a valid filter clause, we look to see if there is a secondary index on the type specified on that filter
+            if(isFilterable.HasValue)
+            {
+                Tuple<string, object> filterProperty = isFilterable.Value; // Name of Property, Property Object we are looking for 
+                string filterPropertyName = filterProperty.Item1;
+                object filterPropertyToLookup = filterProperty.Item2;
+
+                // Types of the objects in the dictionary, used by rest of types
+                Type dictionaryKeyType = entityType.GenericTypeArguments[0];
+                Type dictionaryValueType = entityType.GenericTypeArguments[1];
+
+                //// We create an array with an instance of the filter we expect to find, which is used to lookup the filter
+                //Type filterIndexType = typeof(FilterableIndex<,,>).MakeGenericType(new Type[] { dictionaryKeyType, dictionaryValueType, filterPropertyToLookup.GetType() });
+                //MethodInfo createQueryableInstance = filterIndexType.GetMethod("CreateQueryableInstance");
+                //var filterIndex = createQueryableInstance.Invoke(null, new[] { filterPropertyName });
+                //var arrayOfFilterIndex = Array.CreateInstance(filterIndexType, 1);
+                //arrayOfFilterIndex.SetValue(filterIndex, 0);
+
+                //// Assumption: index has name @propertyName and has filter value.PropertyName(), this is required for filtering to work
+                //// fetches a conditional indexed dictionary
+                //MethodInfo tryGetIndexed = typeof(IndexExtensions).GetMethod("TryGetIndexedAsync").MakeGenericMethod(entityType.GenericTypeArguments);
+                //Task conditionalIndexedDictTask = (Task)tryGetIndexed.Invoke(null, new object[] { stateManager, collection, arrayOfFilterIndex });
+                //await conditionalIndexedDictTask;
+                //var conditionalIndexedDict = conditionalIndexedDictTask.GetType().GetProperty("Result").GetValue(conditionalIndexedDictTask);
+
+                //// We generate the ConditionalValue methods using reflection because we do not explicitely know dictionary type
+                //Type conditionalIndexedDictType = typeof(ConditionalValue<>).MakeGenericType(typeof(IReliableIndexedDictionary<,>).MakeGenericType(new Type[] { dictionaryKeyType, dictionaryValueType }));
+                //PropertyInfo hasValueMethod = conditionalIndexedDictType.GetProperty("HasValue");
+                //PropertyInfo getValueMethod = conditionalIndexedDictType.GetProperty("Value");
+
+                MethodInfo getIndexedDictionaryByPropertyName = typeof(ReliableStateExtensions).GetMethod("GetIndexedDictionaryByPropertyName", BindingFlags.NonPublic | BindingFlags.Static);
+                getIndexedDictionaryByPropertyName = getIndexedDictionaryByPropertyName.MakeGenericMethod(new Type[] { dictionaryKeyType,  dictionaryValueType, filterPropertyToLookup.GetType() } );
+                Task indexedDictTask = (Task)getIndexedDictionaryByPropertyName.Invoke(null, new object[] { stateManager, collection, filterPropertyName } );
+                await indexedDictTask;
+                var indexedDict = indexedDictTask.GetType().GetProperty("Result").GetValue(indexedDictTask);
+
+                // If the dictionary exists, it means we have a secondary index which can handle our filter
+                //if ((bool)hasValueMethod.GetValue(conditionalIndexedDict))
+                if (indexedDict != null)
+                {
+                    // IndexedDictionary we are using
+                    //var indexedDict = getValueMethod.GetValue(conditionalIndexedDict);
+
+                    // Finds the IndexedDictionary.FilterAsync method we want
+                    MethodInfo filterAsyncMethod = null;
+                    Type indexedDictType = typeof(ReliableIndexedDictionary<,>).MakeGenericType(new Type[] { dictionaryKeyType, dictionaryValueType });
+                    var allIndexedDictMethods = indexedDictType.GetMethods();
+                    var filterAsyncMethodCandidates = allIndexedDictMethods.Where(mi => mi.Name == "FilterAsync");
+                    foreach (MethodInfo filterAsyncMethodCandidate in filterAsyncMethodCandidates)
+                    {
+                        if (filterAsyncMethodCandidate.GetParameters().Length == 3)
+                        {
+                            filterAsyncMethod = filterAsyncMethodCandidate;
+                        }
+                    }
+                    filterAsyncMethod = filterAsyncMethod.MakeGenericMethod(new Type[] { filterPropertyToLookup.GetType() });
+
+                    // Use a transaction to make our FilterAsync call on our indexed dictionary
+                    using (var tx = stateManager.CreateTransaction())
+                    {
+                        // Run filter on IndexedDictionary looking for value from filter call
+                        var filterResultsTask = (Task)filterAsyncMethod.Invoke(indexedDict, new object[] { tx, filterPropertyName, filterPropertyToLookup });
+                        await filterResultsTask;
+                        dynamic filterResults = filterResultsTask.GetType().GetProperty("Result").GetValue(filterResultsTask);
+
+                        // Commits transaction, no longer needed
+                        await tx.CommitAsync().ConfigureAwait(false);
+
+                        // Moves results to a new list to get around c# type casting problems
+                        Type keyValuepairType = typeof(KeyValuePair<,>).MakeGenericType(new Type[] { dictionaryKeyType, dictionaryValueType });
+                        dynamic filterResultsList = Activator.CreateInstance(typeof(List<>).MakeGenericType(keyValuepairType));
+                        foreach (var element in filterResults)
+                        {
+                            filterResultsList.Add(element);
+                        }
+
+                        // Turns List to IEnumerable, thens turn to IAsyncEnumerable, then turns to IAsyncEnumerable<Entity> which is what Query infra wants
+                        MethodInfo asEnumerableMethod = typeof(Enumerable).GetMethod("AsEnumerable").MakeGenericMethod(keyValuepairType);
+                        filterResults = asEnumerableMethod.Invoke(null, new object[] { filterResultsList });
+                        MethodInfo asAsyncEnumerableMethod = typeof(AsyncEnumerable).GetMethod("AsAsyncEnumerable").MakeGenericMethod(keyValuepairType); ;
+                        filterResults = asAsyncEnumerableMethod.Invoke(null, new object[] { filterResults });
+                        MethodInfo asEntityMethod = typeof(ReliableStateExtensions).GetMethod("AsEntity", BindingFlags.NonPublic | BindingFlags.Static);
+                        asEntityMethod = asEntityMethod.MakeGenericMethod(new Type[] { dictionaryKeyType, dictionaryValueType });
+                        filterResults = asEntityMethod.Invoke(null, new object[] { filterResults, partitionId, cancellationToken });
+                        
+                        // Aplies the query to the results
+                        dynamic queryResults = ApplyQuery(filterResults, entityType, query, aggregate: false);
+
+                        // Creates a lambda that will turn each element in results to a json object
+                        ParameterExpression objectParameterExpression = Expression.Parameter(typeof(object), "r"); //dictvaluetype is true type of object
+                        Expression jobjectExpression = Expression.Call(typeof(JObject).GetMethod("FromObject", new Type[] { typeof(object) }), objectParameterExpression);
+                        LambdaExpression jsonLambda = Expression.Lambda(jobjectExpression, new ParameterExpression[] { objectParameterExpression });
+
+                        // Converts to json
+                        MethodInfo selectAsync = typeof(AsyncEnumerable).GetMethod("SelectAsync").MakeGenericMethod(new Type[] { typeof(object), typeof(JObject) });
+                        dynamic jsonAsyncEnumerable = selectAsync.Invoke(null, new object[] { queryResults, (Func<object, JObject>)jsonLambda.Compile() });
+
+                        // Converts json return to Enumerable of json
+                        MethodInfo asyncEnumerableAsEnumerableMethod = typeof(AsyncEnumerable).GetMethod("AsEnumerable").MakeGenericMethod(typeof(JObject));
+                        Task jsonTask = (Task)asyncEnumerableAsEnumerableMethod.Invoke(null, new object[] { jsonAsyncEnumerable, default(CancellationToken) });
+                        await jsonTask;
+                        IEnumerable<JObject> json = (IEnumerable<JObject>)jsonTask.GetType().GetProperty("Result").GetValue(jsonTask);
+
+                        // Return the filtered data as json
+                        return json;
+                    }
+                }
+
+            }
+            // If the query does not contain a valid $filter clause or there is no secondary index for that $filter, does an entire dictionary lookup
+            using (var tx = stateManager.CreateTransaction())
 			{
-				// Get the data from the reliable state.
-				var results = await reliableState.GetAsyncEnumerable(tx, stateManager, partitionId, cancellationToken).ConfigureAwait(false);
+                // Get the data from the reliable state
+                var results = await reliableState.GetAsyncEnumerable(tx, stateManager, partitionId, cancellationToken).ConfigureAwait(false);
 
-				// Filter the data.
-				var entityType = reliableState.GetEntityType();
-				results = ApplyQuery(results, entityType, query, aggregate: false);
+                // Filter the data
+                // var entityType = reliableState.GetEntityType();
+                results = ApplyQuery(results, entityType, query, aggregate: false);
 
-				// Convert to json.
-				var json = await results.SelectAsync(r => JObject.FromObject(r)).AsEnumerable().ConfigureAwait(false);
+                // Convert to json
+                var json = await results.SelectAsync(r => JObject.FromObject(r)).AsEnumerable().ConfigureAwait(false);
 
-				await tx.CommitAsync().ConfigureAwait(false);
+                await tx.CommitAsync().ConfigureAwait(false);
 
-				// Return the filtered data as json.
-				return json;
+                // Return the filtered data as json
+                return json;
 			}
 		}
 
-		/// <summary>
-		/// This implementation should not leak into the core Queryable code.  It is dependent on the specific protocol
-		/// used to communicate with the other partitions (HTTP over ReverseProxy), and should be hidden behind an interface.
+        private static async Task<IReliableIndexedDictionary<TKey, TValue>> GetIndexedDictionaryByPropertyName<TKey, TValue, TFilter>(IReliableStateManager stateManager, string dictName, string propertyName)
+                    where TKey : IComparable<TKey>, IEquatable<TKey>
+                    where TFilter : IComparable<TFilter>, IEquatable<TFilter>
+        {
+            FilterableIndex<TKey, TValue, TFilter> filter = FilterableIndex<TKey, TValue, TFilter>.CreateQueryableInstance(propertyName);
+            ConditionalValue<IReliableIndexedDictionary<TKey, TValue>> dictOption = await stateManager.TryGetIndexedAsync<TKey, TValue>(dictName, new[] { filter });
+            if (dictOption.HasValue) {
+                return dictOption.Value;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private static IAsyncEnumerable<KeyValuePair<TKey, TValue>> TryFilterQuery<TKey, TValue>(ODataQueryOptions options)
+        {
+            if (options.Filter == null)
+            {
+                return null;
+            }
+            FilterClause clause = options.Filter.FilterClause;
+
+            throw new NotImplementedException();
+        }
+
+        private static IAsyncEnumerable<TKey> TryFilterNode<TKey>()
+        {
+            throw new NotImplementedException();
+        }
+
+        private static bool isFilterableNode2(SingleValueNode node)
+        {
+            throw new NotImplementedException();
+        } 
+
+        /// <summary>
+		/// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
 		/// </summary>
-		private static async Task<IEnumerable<JToken>> QueryPartitionAsync(Partition partition,
+		/// <returns>A tuple with first element as name of parameter and second the value to compare against</returns>
+        private static ConditionalValue<Tuple<string, object>> IsFilterableQuery(ODataQueryOptions options)
+        {
+            if (options.Filter == null)
+            {
+                return new ConditionalValue<Tuple<string, object>>(false, null);
+            }
+            FilterClause clause = options.Filter.FilterClause;
+            return isFilterableNode(clause.Expression, false);
+        }
+
+        // If node is a not node, much behavior changes
+        private static ConditionalValue<Tuple<string, object>> isFilterableNode(SingleValueNode node, bool isNot)
+        {
+            if (node is UnaryOperatorNode)
+            {
+                // If NOT, negate tree and return isFilterable
+                UnaryOperatorNode asUONode = node as UnaryOperatorNode;
+                if (asUONode.OperatorKind == Microsoft.Data.OData.Query.UnaryOperatorKind.Not)
+                {
+                    return isFilterableNode(asUONode.Operand, !isNot);
+
+                }
+            }
+            else if (node is BinaryOperatorNode)
+            {
+                // If AND, if either node isFilterable, then node is filterable (not makes AND act like OR)
+                BinaryOperatorNode asBONode = node as BinaryOperatorNode;
+                if ((asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.And && !isNot) ||
+                    (asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.Or && isNot))
+                {
+                    ConditionalValue<Tuple<string, object>> isLeftFilterable = isFilterableNode(asBONode.Left, isNot);
+                    if (isLeftFilterable.HasValue) { return isLeftFilterable; }
+                    ConditionalValue<Tuple<string, object>> isRightFilterable = isFilterableNode(asBONode.Right, isNot);
+                    if (isRightFilterable.HasValue) { return isRightFilterable; }
+                    return new ConditionalValue<Tuple<string, object>>(false, null);
+
+                }
+                // If OR, node is not filterable
+                // TODO, if both are filterable, can filter both and union results
+                else if ((asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.Or && !isNot) ||
+                         (asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.And && isNot))
+                {
+                    return new ConditionalValue<Tuple<string, object>>(false, null);
+                }
+                // If Equal, should be filterable, find pertinent info
+                else if ((asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.Equal && !isNot) ||
+                         (asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.NotEqual && isNot))
+                {
+                    if (asBONode.Left is SingleValuePropertyAccessNode)
+                    {
+                        if (asBONode.Right is ConstantNode)
+                        {
+                            SingleValuePropertyAccessNode asSVPANode = asBONode.Left as SingleValuePropertyAccessNode;
+                            ConstantNode asCNode = asBONode.Right as ConstantNode;
+
+                            return new ConditionalValue<Tuple<string, object>>(true, new Tuple<string, object>(asSVPANode.Property.Name, asCNode.Value));
+                        }
+                    }
+                    else if (asBONode.Left is ConstantNode)
+                    {
+                        if (asBONode.Right is SingleValuePropertyAccessNode)
+                        {
+                            SingleValuePropertyAccessNode asSVPANode = asBONode.Right as SingleValuePropertyAccessNode;
+                            ConstantNode asCNode = asBONode.Left as ConstantNode;
+
+                            return new ConditionalValue<Tuple<string, object>>(true, new Tuple<string, object>(asSVPANode.Property.Name, asCNode.Value));
+                        }
+                    }
+                }
+            }
+            return new ConditionalValue<Tuple<string, object>>(false, null);
+        }
+
+        /// <summary>
+        /// This implementation should not leak into the core Queryable code.  It is dependent on the specific protocol
+        /// used to communicate with the other partitions (HTTP over ReverseProxy), and should be hidden behind an interface.
+        /// </summary>
+        private static async Task<IEnumerable<JToken>> QueryPartitionAsync(Partition partition,
 			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
 		{
 			string endpoint = await StatefulServiceUtils.GetPartitionEndpointAsync(context, partition).ConfigureAwait(false);

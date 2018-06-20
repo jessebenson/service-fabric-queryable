@@ -22,7 +22,6 @@
     <PackageReference Include="Microsoft.ServiceFabric.AspNetCore.Kestrel" Version="3.1.274" />
     <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.1.274" />
     <PackageReference Include="Microsoft.ServiceFabric.Services" Version="3.1.274" />
-    <PackageReference Include="Microsoft.ServiceFabric.Services.Queryable" Version="3.1.274" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
   </ItemGroup>
 
@@ -31,6 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Microsoft.ServiceFabric.Services.Queryable\Microsoft.ServiceFabric.Services.Queryable.csproj" />
     <ProjectReference Include="..\Basic.Common\Basic.Common.csproj" />
   </ItemGroup>
 
