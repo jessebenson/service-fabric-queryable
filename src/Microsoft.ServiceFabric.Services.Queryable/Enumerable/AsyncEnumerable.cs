@@ -91,9 +91,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return count;
 		}
 
+        // No longer
 		public static IAsyncEnumerable<TSource> EmptyAsync<TSource>()
 		{
-			return Enumerable.Empty<TSource>().AsAsyncEnumerable();
+			return System.Linq.Enumerable.Empty<TSource>().AsAsyncEnumerable();
 		}
 
 		public static IAsyncEnumerable<TResult> SelectAsync<TSource, TResult>(this IAsyncEnumerable<TSource> source, Func<TSource, TResult> selector)
