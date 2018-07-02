@@ -22,8 +22,11 @@ using Microsoft.Data.Edm;
 using Microsoft.ServiceFabric.Data.Indexing.Persistent;
 using System.Linq.Expressions;
 using System.Linq.Dynamic;
-using Microsoft.ServiceFabric.Services.Queryable.Enumerable;
 using Microsoft.Data.OData.Query;
+using Microsoft.ServiceFabric.Services.Queryable.Util;
+using Microsoft.AspNetCore.Http;
+using System.Web.Http.OData;
+using Microsoft.CSharp;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -62,20 +65,20 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
 		/// </summary>
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
-		/// <param name="context">Stateful Service Context.</param>
+		/// <param name="serviceContext">Stateful Service Context.</param>
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <param name="query">OData query parameters.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
 		public static async Task<IEnumerable<JToken>> QueryAsync(this IReliableStateManager stateManager,
-			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
+			StatefulServiceContext serviceContext, HttpContext httpContext, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
 		{
 			// Get the list of partitions (excluding the executing partition).
-			var partitions = await StatefulServiceUtils.GetPartitionsAsync(context).ConfigureAwait(false);
+			var partitions = await StatefulServiceUtils.GetPartitionsAsync(serviceContext).ConfigureAwait(false);
 
 			// Query all service partitions concurrently.
-			var remoteQueries = partitions.Select(p => QueryPartitionAsync(p, context, collection, query, cancellationToken));
-			var localQuery = stateManager.QueryPartitionAsync(collection, query, context.PartitionId, cancellationToken);
+			var remoteQueries = partitions.Select(p => QueryPartitionAsync(p, serviceContext, collection, query, cancellationToken));
+			var localQuery = stateManager.QueryPartitionAsync(httpContext, collection, query, serviceContext.PartitionId, cancellationToken);
 			var queries = remoteQueries.Concat(new[] { localQuery });
 
 			// Aggregate all query results into a single list.
@@ -83,7 +86,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var results = queryResults.SelectMany(r => r);
 
 			// Run the aggregation query to get the final results (e.g. for top, orderby, project).
-			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			var reliableState = await stateManager.GetQueryableState(httpContext, collection).ConfigureAwait(false);
 			var entityType = reliableState.GetEntityType();
 			var objects = results.Select(r => r.ToObject(entityType));
 			var queryResult = ApplyQuery(objects, entityType, query, aggregate: true);
@@ -102,19 +105,19 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="partitionId">Partition id.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
-		public static async Task<IEnumerable<JToken>> QueryPartitionAsync(this IReliableStateManager stateManager,
+		public static async Task<IEnumerable<JToken>> QueryPartitionAsync(this IReliableStateManager stateManager, HttpContext httpContext,
 			string collection, IEnumerable<KeyValuePair<string, string>> query, Guid partitionId, CancellationToken cancellationToken)
 		{
 			// Find the reliable state (boilerplate)
-			IReliableState reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			IReliableState reliableState = await stateManager.GetQueryableState(httpContext, collection).ConfigureAwait(false);
             var entityType = reliableState.GetEntityType(); // Type Information about the dictionary
             // Types of the objects in the dictionary, used by rest of types
             Type dictionaryKeyType = entityType.GenericTypeArguments[0];
             Type dictionaryValueType = entityType.GenericTypeArguments[1];
 
             // Generate an ODataQuery Object
-            var context = QueryCache.GetQueryContext(entityType);
-            ODataQueryOptions queryOptions = new ODataQueryOptions(query, context, aggregate: false);
+            ODataQueryContext queryContext = QueryCache.GetQueryContext(entityType);
+            ODataQueryOptions queryOptions = new ODataQueryOptions(query, queryContext, aggregate: false);
 
             MethodInfo tryFilterQuery = typeof(ReliableStateExtensions).GetMethod("TryFilterQuery", BindingFlags.NonPublic | BindingFlags.Static);
             tryFilterQuery = tryFilterQuery.MakeGenericMethod(new Type[] { dictionaryKeyType, dictionaryValueType });
@@ -260,8 +263,25 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                     // Both are filterable: intersect
                     if (leftFilterable && rightFilterable)
                     {
-                        return new IEnumerableUtility.IntersectEnumerable<TKey>(await TryFilterNode<TKey,TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken), 
-                                                                                await TryFilterNode<TKey,TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken));
+                        IEnumerable<TKey> leftKeys = await TryFilterNode<TKey, TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken);
+                        IEnumerable<TKey> rightKeys = await TryFilterNode<TKey, TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken);
+
+                        if (leftKeys != null && rightKeys != null)
+                        {
+                            return new IEnumerableUtility.IntersectEnumerable<TKey>(leftKeys, rightKeys);
+                        }
+                        else if (leftKeys != null)
+                        {
+                            return await TryFilterNode<TKey, TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken);
+                        }
+                        else if (rightKeys != null)
+                        {
+                            return await TryFilterNode<TKey, TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken);
+                        }
+                        else
+                        {
+                            return null; //Both queries were candidates for filtering but the filterable indexes did not exist
+                        }
                     }
                     else if (leftFilterable)
                     {
@@ -287,11 +307,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                     bool leftFilterable = isFilterableNode2(asBONode.Left, notIsApplied);
                     bool rightFilterable = isFilterableNode2(asBONode.Right, notIsApplied);
 
-                    // Both are filterable: intersect
+                    // Both are filterable queries: intersect, however if they are null that means there is no index for this property
                     if (leftFilterable && rightFilterable)
                     {
-                        return new IEnumerableUtility.UnionEnumerable<TKey>(await TryFilterNode<TKey,TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken), 
-                                                                            await TryFilterNode<TKey,TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken));
+                        IEnumerable<TKey> leftKeys = await TryFilterNode<TKey, TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken);
+                        IEnumerable<TKey> rightKeys = await TryFilterNode<TKey, TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken);
+
+                        if (leftKeys != null && rightKeys != null)
+                        {
+                            return new IEnumerableUtility.UnionEnumerable<TKey>(leftKeys, rightKeys);
+                        }
                     }
 
                     return null;
@@ -352,7 +377,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
         }
 
         // This is a seperate method because we now know PropertyType, so want to not use reflection in above method
-        private static async Task<IEnumerable<TKey>> filterHelper<TKey, TValue, TFilter>(ReliableIndexedDictionary<TKey, TValue> dictionary, TFilter constant, BinaryOperatorKind strategy, bool notIsApplied, CancellationToken cancellationToken, IReliableStateManager stateManager, string propertyName)
+        private static async Task<IEnumerable<TKey>> filterHelper<TKey, TValue, TFilter>(IReliableIndexedDictionary<TKey, TValue> dictionary, TFilter constant, BinaryOperatorKind strategy, bool notIsApplied, CancellationToken cancellationToken, IReliableStateManager stateManager, string propertyName)
             where TFilter : IComparable<TFilter>, IEquatable<TFilter>
             where TKey : IComparable<TKey>, IEquatable<TKey>
         {
@@ -367,22 +392,22 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                 else if ((strategy == BinaryOperatorKind.GreaterThan && !notIsApplied) ||
                          (strategy == BinaryOperatorKind.LessThan && notIsApplied))
                 {
-                    return await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.EXCLUSIVE, TimeSpan.FromSeconds(4), cancellationToken);
+                    return await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Exclusive, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else if ((strategy == BinaryOperatorKind.GreaterThanOrEqual && !notIsApplied) ||
                          (strategy == BinaryOperatorKind.LessThanOrEqual && notIsApplied))
                 {
-                    return await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.INCLUSIVE, TimeSpan.FromSeconds(4), cancellationToken);
+                    return await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Inclusive, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else if ((strategy == BinaryOperatorKind.LessThan && !notIsApplied) ||
                          (strategy == BinaryOperatorKind.GreaterThan && notIsApplied))
                 {
-                    return await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.EXCLUSIVE, TimeSpan.FromSeconds(4), cancellationToken);
+                    return await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Exclusive, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else if ((strategy == BinaryOperatorKind.LessThanOrEqual && !notIsApplied) ||
                          (strategy == BinaryOperatorKind.GreaterThanOrEqual && notIsApplied))
                 {
-                    return await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.INCLUSIVE, TimeSpan.FromSeconds(4), cancellationToken);
+                    return await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Inclusive, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else
                 {
@@ -472,81 +497,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
             }
         } 
 
-        /// <summary>
-		/// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
-		/// </summary>
-		/// <returns>A tuple with first element as name of parameter and second the value to compare against</returns>
-        private static ConditionalValue<Tuple<string, object>> IsFilterableQuery(ODataQueryOptions options)
-        {
-            if (options.Filter == null)
-            {
-                return new ConditionalValue<Tuple<string, object>>(false, null);
-            }
-            FilterClause clause = options.Filter.FilterClause;
-            return isFilterableNode(clause.Expression, false);
-        }
-
-        // If node is a not node, much behavior changes
-        private static ConditionalValue<Tuple<string, object>> isFilterableNode(SingleValueNode node, bool isNot)
-        {
-            if (node is UnaryOperatorNode)
-            {
-                // If NOT, negate tree and return isFilterable
-                UnaryOperatorNode asUONode = node as UnaryOperatorNode;
-                if (asUONode.OperatorKind == Microsoft.Data.OData.Query.UnaryOperatorKind.Not)
-                {
-                    return isFilterableNode(asUONode.Operand, !isNot);
-                }
-            }
-            else if (node is BinaryOperatorNode)
-            {
-                // If AND, if either node isFilterable, then node is filterable (not makes AND act like OR)
-                BinaryOperatorNode asBONode = node as BinaryOperatorNode;
-                if ((asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.And && !isNot) ||
-                    (asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.Or && isNot))
-                {
-                    ConditionalValue<Tuple<string, object>> isLeftFilterable = isFilterableNode(asBONode.Left, isNot);
-                    if (isLeftFilterable.HasValue) { return isLeftFilterable; }
-                    ConditionalValue<Tuple<string, object>> isRightFilterable = isFilterableNode(asBONode.Right, isNot);
-                    if (isRightFilterable.HasValue) { return isRightFilterable; }
-                    return new ConditionalValue<Tuple<string, object>>(false, null);
-
-                }
-                // If OR, node is not filterable
-                // TODO, if both are filterable, can filter both and union results
-                else if ((asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.Or && !isNot) ||
-                         (asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.And && isNot))
-                {
-                    return new ConditionalValue<Tuple<string, object>>(false, null);
-                }
-                // If Equal, should be filterable, find pertinent info
-                else if ((asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.Equal && !isNot) ||
-                         (asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.NotEqual && isNot))
-                {
-                    if (asBONode.Left is SingleValuePropertyAccessNode)
-                    {
-                        if (asBONode.Right is ConstantNode)
-                        {
-                            SingleValuePropertyAccessNode asSVPANode = asBONode.Left as SingleValuePropertyAccessNode;
-                            ConstantNode asCNode = asBONode.Right as ConstantNode;
-
-                            return new ConditionalValue<Tuple<string, object>>(true, new Tuple<string, object>(asSVPANode.Property.Name, asCNode.Value));
-                        }
-                    }
-                    else if (asBONode.Left is ConstantNode)
-                    {
-                        if (asBONode.Right is SingleValuePropertyAccessNode)
-                        {
-                            SingleValuePropertyAccessNode asSVPANode = asBONode.Right as SingleValuePropertyAccessNode;
-                            ConstantNode asCNode = asBONode.Left as ConstantNode;
-
-                            return new ConditionalValue<Tuple<string, object>>(true, new Tuple<string, object>(asSVPANode.Property.Name, asCNode.Value));
-                        }
-                    }
-                }
-            }
-            return new ConditionalValue<Tuple<string, object>>(false, null);
-        }
 
         /// <summary>
         /// This implementation should not leak into the core Queryable code.  It is dependent on the specific protocol
@@ -568,7 +518,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="operations">Operations (add/update/delete) to perform against collections in the partition.</param>
 		/// <returns>A list of status codes indicating success/failure of the operations.</returns>
-		public static async Task<List<EntityOperationResult>> ExecuteAsync(this IReliableStateManager stateManager, EntityOperation<JToken, JToken>[] operations)
+		public static async Task<List<EntityOperationResult>> ExecuteAsync(this IReliableStateManager stateManager, HttpContext httpContext, EntityOperation<JToken, JToken>[] operations)
 		{
 			var results = new List<EntityOperationResult>();
 			using (var tx = stateManager.CreateTransaction())
@@ -582,7 +532,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					try
 					{
 						// Get the reliable dictionary for this operation.
-						var dictionary = await stateManager.GetQueryableState(operation.Collection).ConfigureAwait(false);
+						var dictionary = await stateManager.GetQueryableState(httpContext, operation.Collection).ConfigureAwait(false);
 
 						// Execute operation.
 						if (operation.Operation == Operation.Add)
@@ -725,17 +675,24 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <returns>The reliable collection that supports querying.</returns>
-		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
+		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, HttpContext httpContext, string collection)
 		{
 			// Find the reliable state.
 			var reliableStateResult = await stateManager.TryGetAsync<IReliableState>(collection).ConfigureAwait(false);
 			if (!reliableStateResult.HasValue)
-				throw new ArgumentException($"IReliableState '{collection}' not found.");
+            {
+                QueryableEventSource.Log.ClientError(httpContext.TraceIdentifier, $"This collection : {collection} does not exist", 400);
+                throw new ArgumentException($"IReliableState '{collection}' not found in this state manager.");
+            }
+
 
 			// Verify the state is a reliable dictionary.
 			var reliableState = reliableStateResult.Value;
 			if (!reliableState.ImplementsGenericType(typeof(IReliableDictionary<,>)))
-				throw new ArgumentException($"IReliableState '{collection}' must be an IReliableDictionary.");
+            {
+                QueryableEventSource.Log.ClientError(httpContext.TraceIdentifier, $"Collection must be an IReliableDictionary2 to be queried against", 400);
+                throw new ArgumentException($"IReliableState '{collection}' must be an IReliableDictionary.");
+            }
 
 			return reliableState;
 		}
