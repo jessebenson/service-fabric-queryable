@@ -27,6 +27,7 @@ using Microsoft.ServiceFabric.Services.Queryable.Util;
 using Microsoft.AspNetCore.Http;
 using System.Web.Http.OData;
 using Microsoft.CSharp;
+using Microsoft.ServiceFabric.Services.Queryable.LINQ;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -108,8 +109,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		public static async Task<IEnumerable<JToken>> QueryPartitionAsync(this IReliableStateManager stateManager, HttpContext httpContext,
 			string collection, IEnumerable<KeyValuePair<string, string>> query, Guid partitionId, CancellationToken cancellationToken)
 		{
-			// Find the reliable state (boilerplate)
-			IReliableState reliableState = await stateManager.GetQueryableState(httpContext, collection).ConfigureAwait(false);
+
+            // Find the reliable state (boilerplate)
+            IReliableState reliableState = await stateManager.GetQueryableState(httpContext, collection).ConfigureAwait(false);
             var entityType = reliableState.GetEntityType(); // Type Information about the dictionary
             // Types of the objects in the dictionary, used by rest of types
             Type dictionaryKeyType = entityType.GenericTypeArguments[0];
@@ -347,7 +349,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                         return null; // Filter does not exist or dictionary does not exist
                     }
 
-                    MethodInfo filterHelper = typeof(ReliableStateExtensions).GetMethod("filterHelper", BindingFlags.NonPublic | BindingFlags.Static);
+                    MethodInfo filterHelper = typeof(ReliableStateExtensions).GetMethod("FilterHelper", BindingFlags.NonPublic | BindingFlags.Static);
                     filterHelper = filterHelper.MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue), propertyType });
                     Task filterHelperTask = (Task)filterHelper.Invoke(null, new object[] { indexedDict, constantNode.Value, asBONode.OperatorKind, notIsApplied, cancellationToken, stateManager, propertyName });
                     await filterHelperTask;
@@ -377,43 +379,47 @@ namespace Microsoft.ServiceFabric.Services.Queryable
         }
 
         // This is a seperate method because we now know PropertyType, so want to not use reflection in above method
-        private static async Task<IEnumerable<TKey>> filterHelper<TKey, TValue, TFilter>(IReliableIndexedDictionary<TKey, TValue> dictionary, TFilter constant, BinaryOperatorKind strategy, bool notIsApplied, CancellationToken cancellationToken, IReliableStateManager stateManager, string propertyName)
+        public static async Task<IEnumerable<TKey>> FilterHelper<TKey, TValue, TFilter>(IReliableIndexedDictionary<TKey, TValue> dictionary, TFilter constant, BinaryOperatorKind strategy, bool notIsApplied, CancellationToken cancellationToken, IReliableStateManager stateManager, string propertyName)
             where TFilter : IComparable<TFilter>, IEquatable<TFilter>
             where TKey : IComparable<TKey>, IEquatable<TKey>
         {
+
             using (var tx = stateManager.CreateTransaction())
             {
+                IEnumerable<TKey> result;
                 // Equals
                 if ((strategy == BinaryOperatorKind.Equal && !notIsApplied) ||
                     (strategy == BinaryOperatorKind.NotEqual && notIsApplied))
                 {
-                    return await dictionary.FilterKeysOnlyAsync(tx, propertyName, constant, TimeSpan.FromSeconds(4), cancellationToken);
+                    result =  await dictionary.FilterKeysOnlyAsync(tx, propertyName, constant, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else if ((strategy == BinaryOperatorKind.GreaterThan && !notIsApplied) ||
                          (strategy == BinaryOperatorKind.LessThan && notIsApplied))
                 {
-                    return await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Exclusive, TimeSpan.FromSeconds(4), cancellationToken);
+                    result = await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Exclusive, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else if ((strategy == BinaryOperatorKind.GreaterThanOrEqual && !notIsApplied) ||
                          (strategy == BinaryOperatorKind.LessThanOrEqual && notIsApplied))
                 {
-                    return await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Inclusive, TimeSpan.FromSeconds(4), cancellationToken);
+                    result = await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Inclusive, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else if ((strategy == BinaryOperatorKind.LessThan && !notIsApplied) ||
                          (strategy == BinaryOperatorKind.GreaterThan && notIsApplied))
                 {
-                    return await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Exclusive, TimeSpan.FromSeconds(4), cancellationToken);
+                    result = await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Exclusive, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else if ((strategy == BinaryOperatorKind.LessThanOrEqual && !notIsApplied) ||
                          (strategy == BinaryOperatorKind.GreaterThanOrEqual && notIsApplied))
                 {
-                    return await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Inclusive, TimeSpan.FromSeconds(4), cancellationToken);
+                    result = await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Inclusive, TimeSpan.FromSeconds(4), cancellationToken);
                 }
                 else
                 {
                     // Bad State, should never hit
                     throw new NotSupportedException("Does not support Add, Subtract, Modulo, Multiply, Divide operations.");
                 }
+                await tx.CommitAsync();
+                return result;
             }
 
         }

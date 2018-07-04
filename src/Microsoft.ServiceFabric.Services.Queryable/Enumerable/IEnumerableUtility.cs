@@ -13,6 +13,56 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
         // IAsyncEnumerables must be in same sorted order!
         // Assumes no repeats
+        public sealed class KeyValueToValueEnumerable<TKey, TValue> : IEnumerable<TValue>
+        {
+            private IEnumerable<KeyValuePair<TKey, TValue>> enum1;
+
+            public KeyValueToValueEnumerable(IEnumerable<KeyValuePair<TKey, TValue>> enum1)
+            {
+                this.enum1 = enum1;
+            }
+
+            public IEnumerator<TValue> GetEnumerator()
+            {
+                return new KeyValueToValueEnumerator<TKey, TValue>(enum1.GetEnumerator());
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
+        private sealed class KeyValueToValueEnumerator<TKey, TValue> : IEnumerator<TValue>
+        {
+            private IEnumerator<KeyValuePair<TKey, TValue>> enum1;
+            public TValue Current => enum1.Current.Value;
+
+            object IEnumerator.Current => Current;
+
+            public KeyValueToValueEnumerator(IEnumerator<KeyValuePair<TKey, TValue>> enum1)
+            {
+                this.enum1 = enum1;
+            }
+
+            public void Dispose()
+            {
+                enum1.Dispose();
+            }
+
+            public bool MoveNext()
+            {
+                return enum1.MoveNext();
+            }
+
+            public void Reset()
+            {
+                enum1.Reset();
+            }
+        }
+
+        // IAsyncEnumerables must be in same sorted order!
+        // Assumes no repeats
         public sealed class IntersectEnumerable<T> : IEnumerable<T>
             where T : IComparable<T>, IEquatable<T>
         {

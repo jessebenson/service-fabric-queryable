@@ -14,6 +14,7 @@ using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
 using Basic.Common;
 using Microsoft.ServiceFabric.Data.Indexing.Persistent;
+using Microsoft.ServiceFabric.Services.Queryable.LINQ;
 
 namespace Basic.UserSvc
 {
@@ -60,7 +61,7 @@ namespace Basic.UserSvc
                  FilterableIndex<UserName, UserProfile, string>.CreateQueryableInstance("Email"),
                    FilterableIndex<UserName, UserProfile, int>.CreateQueryableInstance("Age"));
 
-            for (int i = 0; i < 10000; i++)
+            for (int i = 0; i < 100; i++)
 			{
 				using (var tx = StateManager.CreateTransaction())
 				{
@@ -94,6 +95,24 @@ namespace Basic.UserSvc
                     await tx.CommitAsync();
 				}
 			}
-		}
-	}
+
+            // TEST TODO REMOVE
+
+            QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile> qdict = new QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile>(indexed_users, StateManager);
+
+            while(!cancellationToken.IsCancellationRequested)
+            {
+                var query = from UserProfile profile in qdict
+                            where profile.Email == "user-0@example.com"
+                            select profile;
+
+                foreach (UserProfile profile in query)
+                {
+
+                }
+                //
+            }
+
+        }
+    }
 }
