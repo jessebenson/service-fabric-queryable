@@ -100,18 +100,23 @@ namespace Basic.UserSvc
 
             QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile> qdict = new QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile>(indexed_users, StateManager);
 
-            while(!cancellationToken.IsCancellationRequested)
+            var query = from UserProfile profile in qdict
+                        where profile.Email == "user-0@example.com"
+                        select profile;
+
+            foreach (UserProfile profile in query)
             {
-                var query = from UserProfile profile in qdict
-                            where profile.Email == "user-0@example.com"
-                            select profile;
 
-                foreach (UserProfile profile in query)
-                {
-
-                }
-                //
             }
+
+            var query2 = qdict.Where(x => x.Email == "user-0@example.com");
+
+
+            foreach (UserProfile profile in query2)
+            {
+
+            }
+            //
 
         }
     }

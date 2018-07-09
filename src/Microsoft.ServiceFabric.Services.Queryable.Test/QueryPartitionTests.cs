@@ -16,6 +16,7 @@ using Microsoft.ServiceFabric.Data.Collections;
 using Basic.Common;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
+using Microsoft.ServiceFabric.Data.Indexing.Persistent;
 
 namespace Microsoft.ServiceFabric.Services.Queryable.Test
 {
@@ -23,7 +24,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
     public class QueryPartitionTests
     {
         IReliableStateManager userDictionaryManager;
-        
+        Mock<IReliableIndexedDictionary<Basic.Common.UserName, Basic.Common.UserProfile>> mockDictionary;
+
         private static readonly string user0 = "\"Value\": {\r\n  \"Name\": {\r\n    \"First\": \"First0\",\r\n    \"Last\": \"Last0\"\r\n  },\r\n  \"Email\": \"user-0@example.com\",\r\n  \"Age\": 20,\r\n  \"Address\": {\r\n    \"AddressLine1\": \"10 Main St.\",\r\n    \"AddressLine2\": null,\r\n    \"City\": \"Seattle\",\r\n    \"State\": \"WA\",\r\n    \"Zipcode\": 98117\r\n  }\r\n}";
         private static readonly string user1 = "\"Value\": {\r\n  \"Name\": {\r\n    \"First\": \"First1\",\r\n    \"Last\": \"Last1\"\r\n  },\r\n  \"Email\": \"user-1@example.com\",\r\n  \"Age\": 20,\r\n  \"Address\": {\r\n    \"AddressLine1\": \"11 Main St.\",\r\n    \"AddressLine2\": null,\r\n    \"City\": \"Seattle\",\r\n    \"State\": \"WA\",\r\n    \"Zipcode\": 98117\r\n  }\r\n}";
         private static readonly string user2 = "\"Value\": {\r\n  \"Name\": {\r\n    \"First\": \"First2\",\r\n    \"Last\": \"Last2\"\r\n  },\r\n  \"Email\": \"user-2@example.com\",\r\n  \"Age\": 20,\r\n  \"Address\": {\r\n    \"AddressLine1\": \"12 Main St.\",\r\n    \"AddressLine2\": null,\r\n    \"City\": \"Seattle\",\r\n    \"State\": \"WA\",\r\n    \"Zipcode\": 98117\r\n  }\r\n}";
@@ -34,6 +36,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         public void TestInitialize()
         {
             userDictionaryManager = new MockReliableStateManager();
+
             IReliableDictionary2<UserName, Basic.Common.UserProfile> dictionary =
                 userDictionaryManager.GetOrAddAsync<IReliableDictionary2<UserName, Basic.Common.UserProfile>>("users").Result; 
 
@@ -64,6 +67,14 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
                     tx.CommitAsync();
                 }
             }
+
+            mockDictionary = new Mock<IReliableIndexedDictionary<Basic.Common.UserName, Basic.Common.UserProfile>>();
+            List<UserName> result = new List<UserName>();
+            UserName tempUser = new UserName();
+            tempUser.First = "First0"; tempUser.Last = "Last0";
+            result.Add(tempUser);
+            mockDictionary.Setup(dict => dict.FilterKeysOnlyAsync<string>(It.IsAny<ITransaction>(), "Email", "email-0@example.com", It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.FromResult(result.AsEnumerable()));
         }
 
         [TestMethod]

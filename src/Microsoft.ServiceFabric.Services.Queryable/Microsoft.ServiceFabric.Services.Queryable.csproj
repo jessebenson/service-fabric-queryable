@@ -19,12 +19,9 @@
     <PackageReference Include="Microsoft.Data.OData" Version="5.8.3" />
     <PackageReference Include="Microsoft.ServiceFabric" Version="6.2.283" />
     <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.1.283" />
+    <PackageReference Include="Microsoft.ServiceFabric.Data.Indexing.Persistent" Version="3.1.283" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
     <PackageReference Include="System.Linq.Dynamic" Version="1.0.7" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\service-fabric-indexing\src\Microsoft.ServiceFabric.Data.Indexing.Persistent\Microsoft.ServiceFabric.Data.Indexing.Persistent.csproj" />
   </ItemGroup>
 
 </Project>

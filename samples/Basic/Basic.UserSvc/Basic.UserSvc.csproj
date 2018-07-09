@@ -21,6 +21,7 @@
     <PackageReference Include="Microsoft.ServiceFabric" Version="6.2.283" />
     <PackageReference Include="Microsoft.ServiceFabric.AspNetCore.Kestrel" Version="3.1.283" />
     <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.1.283" />
+    <PackageReference Include="Microsoft.ServiceFabric.Data.Indexing.Persistent" Version="3.1.283" />
     <PackageReference Include="Microsoft.ServiceFabric.Services" Version="3.1.283" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
   </ItemGroup>

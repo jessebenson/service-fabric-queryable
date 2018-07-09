@@ -349,7 +349,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                         return null; // Filter does not exist or dictionary does not exist
                     }
 
-                    MethodInfo filterHelper = typeof(ReliableStateExtensions).GetMethod("FilterHelper", BindingFlags.NonPublic | BindingFlags.Static);
+                    MethodInfo filterHelper = typeof(ReliableStateExtensions).GetMethod("FilterHelper", BindingFlags.Public | BindingFlags.Static);
                     filterHelper = filterHelper.MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue), propertyType });
                     Task filterHelperTask = (Task)filterHelper.Invoke(null, new object[] { indexedDict, constantNode.Value, asBONode.OperatorKind, notIsApplied, cancellationToken, stateManager, propertyName });
                     await filterHelperTask;

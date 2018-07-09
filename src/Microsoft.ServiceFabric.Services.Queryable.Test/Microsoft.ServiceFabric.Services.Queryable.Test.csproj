@@ -98,8 +98,14 @@
     <Reference Include="Microsoft.ServiceFabric.Data.Extensions, Version=1.3.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.ServiceFabric.Data.Extensions.1.3.283\lib\net461\Microsoft.ServiceFabric.Data.Extensions.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.ServiceFabric.Data.Indexing.Persistent, Version=3.1.283.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\Microsoft.ServiceFabric.Data.Indexing.Persistent.3.1.283\lib\netstandard2.0\Microsoft.ServiceFabric.Data.Indexing.Persistent.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.ServiceFabric.Data.Interfaces, Version=5.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64">
       <HintPath>..\packages\Microsoft.ServiceFabric.Data.Interfaces.3.1.283\lib\net461\Microsoft.ServiceFabric.Data.Interfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.ServiceFabric.Diagnostics, Version=6.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64">
+      <HintPath>..\packages\Microsoft.ServiceFabric.Diagnostics.Internal.3.1.283\lib\net461\Microsoft.ServiceFabric.Diagnostics.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.ServiceFabric.Internal, Version=6.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64">
       <HintPath>..\packages\Microsoft.ServiceFabric.6.2.283\lib\net461\Microsoft.ServiceFabric.Internal.dll</HintPath>
@@ -112,6 +118,9 @@
     </Reference>
     <Reference Include="Microsoft.ServiceFabric.ReliableCollection.Interop, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.ServiceFabric.Data.Extensions.1.3.283\lib\net461\Microsoft.ServiceFabric.ReliableCollection.Interop.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.ServiceFabric.Services, Version=6.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64">
+      <HintPath>..\packages\Microsoft.ServiceFabric.Services.3.1.283\lib\net461\Microsoft.ServiceFabric.Services.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.VisualStudio.TestPlatform.TestFramework, Version=14.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\MSTest.TestFramework.1.3.2\lib\net45\Microsoft.VisualStudio.TestPlatform.TestFramework.dll</HintPath>
@@ -157,6 +166,7 @@
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.4.5.1\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
     </Reference>
     <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.ServiceModel" />
     <Reference Include="System.Spatial, Version=5.8.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Spatial.5.8.3\lib\net40\System.Spatial.dll</HintPath>
     </Reference>
@@ -195,10 +205,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\service-fabric-indexing\src\Microsoft.ServiceFabric.Data.Indexing.Persistent\Microsoft.ServiceFabric.Data.Indexing.Persistent.csproj">
-      <Project>{505134be-cf41-4b0f-97a4-bd60edb9c242}</Project>
-      <Name>Microsoft.ServiceFabric.Data.Indexing.Persistent</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\..\service-fabric-indexing\src\Microsoft.ServiceFabric.Data.Mocks\Microsoft.ServiceFabric.Data.Mocks.csproj">
       <Project>{3d542fcd-a322-437c-8834-7781d963caf5}</Project>
       <Name>Microsoft.ServiceFabric.Data.Mocks</Name>
