@@ -205,13 +205,13 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\service-fabric-indexing\src\Microsoft.ServiceFabric.Data.Mocks\Microsoft.ServiceFabric.Data.Mocks.csproj">
-      <Project>{3d542fcd-a322-437c-8834-7781d963caf5}</Project>
-      <Name>Microsoft.ServiceFabric.Data.Mocks</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\samples\Basic\Basic.Common\Basic.Common.csproj">
       <Project>{a4fb1fee-756f-4071-9f91-714807d75d16}</Project>
       <Name>Basic.Common</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\Microsoft.ServiceFabric.Data.Mocks\Microsoft.ServiceFabric.Data.Mocks.csproj">
+      <Project>{3d542fcd-a322-437c-8834-7781d963caf5}</Project>
+      <Name>Microsoft.ServiceFabric.Data.Mocks</Name>
     </ProjectReference>
     <ProjectReference Include="..\Microsoft.ServiceFabric.Services.Queryable\Microsoft.ServiceFabric.Services.Queryable.csproj">
       <Project>{4b9d2c27-562e-48a5-bad1-b66e67413943}</Project>
