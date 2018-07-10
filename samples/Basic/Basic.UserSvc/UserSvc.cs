@@ -101,7 +101,7 @@ namespace Basic.UserSvc
             QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile> qdict = new QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile>(indexed_users, StateManager);
 
             var query = from UserProfile profile in qdict
-                        where profile.Email == "user-0@example.com"
+                        where profile.Age >= 20 && profile.Email == "user-0@example.com" && profile.Age <= 20
                         select profile;
 
             foreach (UserProfile profile in query)

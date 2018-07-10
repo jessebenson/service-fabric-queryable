@@ -228,13 +228,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
             }
         }
 
-        private static async Task<IEnumerable<TKey>> TryFilterNode<TKey, TValue>(SingleValueNode node, bool notIsApplied, IReliableStateManager stateManager, string dictName, CancellationToken cancellationToken)
+        public static async Task<IEnumerable<TKey>> TryFilterNode<TKey, TValue>(SingleValueNode node, bool notIsApplied, IReliableStateManager stateManager, string dictName, CancellationToken cancellationToken)
             where TKey : IComparable<TKey>, IEquatable<TKey>
         {
-            if (node is UnaryOperatorNode)
+            if (node is UnaryOperatorNode asUONode)
             {
                 // If NOT, negate tree and return isFilterable
-                UnaryOperatorNode asUONode = node as UnaryOperatorNode;
                 if (asUONode.OperatorKind == Microsoft.Data.OData.Query.UnaryOperatorKind.Not)
                 {
                     if (isFilterableNode2(asUONode.Operand, !notIsApplied))
@@ -249,13 +248,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                     throw new NotSupportedException("Does not support the Negate unary operator");
                 }
             }
-            else if (node is BinaryOperatorNode)
+
+            else if (node is BinaryOperatorNode asBONode)
             {
                 // Filterable(A) AND Filterable(B)      => Intersect(Filter(A), Filter(B))
                 // !Filterable(A) AND Filterable(B)     => Filter(B)
                 // Filterable(A) AND !Filterable(B)     => Filter(A)
                 // !Filterable(A) AND !Filterable(B)    => NF
-                BinaryOperatorNode asBONode = node as BinaryOperatorNode;
                 if ((asBONode.OperatorKind == BinaryOperatorKind.And && !notIsApplied) ||
                     (asBONode.OperatorKind == BinaryOperatorKind.Or && notIsApplied))
                 {
@@ -367,9 +366,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                     throw new NotSupportedException("Does not support Add, Subtract, Modulo, Multiply, Divide operations.");
                 }
             }
-            else if (node is ConvertNode)
+            else if (node is ConvertNode asCNode)
             {
-                ConvertNode asCNode = node as ConvertNode;
                 return await TryFilterNode<TKey, TValue>(asCNode.Source, notIsApplied, stateManager, dictName, cancellationToken);
             }
             else
@@ -426,11 +424,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
         private static bool isFilterableNode2(SingleValueNode node, bool notIsApplied)
         {
-            if (node is UnaryOperatorNode)
+            if (node is UnaryOperatorNode asUONode)
             {
                 // If NOT, negate tree and return isFilterable
-                UnaryOperatorNode asUONode = node as UnaryOperatorNode;
-                if (asUONode.OperatorKind == Microsoft.Data.OData.Query.UnaryOperatorKind.Not)
+                if (asUONode.OperatorKind == UnaryOperatorKind.Not)
                 {
                     return isFilterableNode2(asUONode.Operand, !notIsApplied);
                 }
@@ -439,13 +436,12 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                     throw new NotSupportedException("Does not support the Negate unary operator");
                 }
             }
-            else if (node is BinaryOperatorNode)
+            else if (node is BinaryOperatorNode asBONode)
             {
                 // Filterable(A) AND Filterable(B)      => Intersect(Filter(A), Filter(B))
                 // !Filterable(A) AND Filterable(B)     => Filter(B)
                 // Filterable(A) AND !Filterable(B)     => Filter(A)
                 // !Filterable(A) AND !Filterable(B)    => NF
-                BinaryOperatorNode asBONode = node as BinaryOperatorNode;
                 if ((asBONode.OperatorKind == BinaryOperatorKind.And && !notIsApplied) ||
                     (asBONode.OperatorKind == BinaryOperatorKind.Or && notIsApplied))
                 {
@@ -492,9 +488,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                     throw new NotSupportedException("Does not support Add, Subtract, Modulo, Multiply, Divide operations.");
                 }
             }
-            else if (node is ConvertNode)
+            else if (node is ConvertNode asCNode)
             {
-                ConvertNode asCNode = node as ConvertNode;
                 return isFilterableNode2(asCNode.Source, notIsApplied);
             }
             else
