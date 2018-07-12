@@ -37,6 +37,9 @@
     <Reference Include="Microsoft.ServiceFabric.Data.Extensions, Version=1.3.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.ServiceFabric.Data.Extensions.1.3.283\lib\net461\Microsoft.ServiceFabric.Data.Extensions.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.ServiceFabric.Data.Indexing.Persistent, Version=3.1.283.0, Culture=neutral, processorArchitecture=AMD64">
+      <HintPath>..\packages\Microsoft.ServiceFabric.Data.Indexing.Persistent.3.1.283\lib\netstandard2.0\Microsoft.ServiceFabric.Data.Indexing.Persistent.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.ServiceFabric.Data.Interfaces, Version=5.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64">
       <HintPath>..\packages\Microsoft.ServiceFabric.Data.Interfaces.3.1.283\lib\net461\Microsoft.ServiceFabric.Data.Interfaces.dll</HintPath>
       <Private>True</Private>

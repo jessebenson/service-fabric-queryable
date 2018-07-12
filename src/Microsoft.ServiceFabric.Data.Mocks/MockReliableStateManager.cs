@@ -151,7 +151,7 @@ namespace Microsoft.ServiceFabric.Data.Mocks
 
 		private static Uri GetUri(string name)
 		{
-			return new Uri($"urn://{name}");
+			return new Uri($"urn:{name}");
 		}
 	}
 }
