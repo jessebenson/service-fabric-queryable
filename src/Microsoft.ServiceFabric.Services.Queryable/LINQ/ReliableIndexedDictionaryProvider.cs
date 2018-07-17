@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using Microsoft.ServiceFabric.Data.Indexing.Persistent;
 using System.Reflection;
 using Microsoft.ServiceFabric.Data;
+using System.Threading.Tasks;
 
 namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
 {
@@ -51,8 +52,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
 
             MethodInfo execute = typeof(ReliableIndexedDictionaryQueryContext).GetMethod("Execute", BindingFlags.Static | BindingFlags.NonPublic);
             execute = execute.MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue), innerType });
-            return (TResult)execute.Invoke(null, new object[] { expression, StateManager, Dictionary });
-            //return (TResult)ReliableIndexedDictionaryQueryContext.Execute<TResult>(expression, IsEnumerable);
+            return ((Task<TResult>)execute.Invoke(null, new object[] { expression, StateManager, Dictionary })).Result;
         }
 
         public IQueryable<TResult> CreateQuery<TResult>(Expression expression)

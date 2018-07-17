@@ -18,7 +18,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
     {
         // Executes the expression tree that is passed to it. 
         // Should return 
-        internal static object Execute<TKey, TValue, TResult>(Expression expression, IReliableStateManager stateManager, IReliableIndexedDictionary<TKey, TValue> dictionary)
+        internal static async Task<object> Execute<TKey, TValue, TResult>(Expression expression, IReliableStateManager stateManager, IReliableIndexedDictionary<TKey, TValue> dictionary)
                         where TKey : IComparable<TKey>, IEquatable<TKey>
         {
             // The expression must represent a query over the data source. 
@@ -33,27 +33,16 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
             // Send the lambda expression through the partial evaluator.
             lambdaExpression = (LambdaExpression)Evaluator.PartialEval(lambdaExpression);
 
-            // TEST: Translate expression to Odata Expression
+            // Translate expression to Odata Expression
             SingleValueNode root = TranslateToOData(lambdaExpression.Body);
-            IEnumerable<TKey> keys = ReliableStateExtensions.TryFilterNode<TKey, TValue>(root, false, stateManager, dictionary.Name.AbsolutePath, new CancellationToken()).Result;
-            //
-
-            //WhereExtractor<TResult> extractor = new WhereExtractor<TResult>(expression);
-            //BinaryOperatorKind operatorKind = extractor.OperatorKind;
-            //object constant = extractor.Constant;
-            //string propertyName = extractor.PropertyName;
-
-            //MethodInfo filterHelper = typeof(ReliableStateExtensions).GetMethod("FilterHelper", BindingFlags.Static | BindingFlags.Public);
-            //filterHelper = filterHelper.MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue), constant.GetType() });
-            //Task<IEnumerable<TKey>> keysTask = (Task<IEnumerable<TKey>>)filterHelper.Invoke(null, new object[] { dictionary, constant, operatorKind, false, new CancellationToken(), stateManager, propertyName});
-            //IEnumerable<TKey> keys = keysTask.Result;
+            IEnumerable<TKey> keys = await ReliableStateExtensions.TryFilterNode<TKey, TValue>(root, false, stateManager, dictionary.Name.AbsolutePath, new CancellationToken());
 
             IEnumerable<TValue> values;
             using (var tx = stateManager.CreateTransaction())
             {
-                IEnumerable<KeyValuePair<TKey, TValue>> pairs = dictionary.GetAllAsync(tx, keys, TimeSpan.FromSeconds(4), new CancellationToken()).Result;
+                IEnumerable<KeyValuePair<TKey, TValue>> pairs = await dictionary.GetAllAsync(tx, keys, TimeSpan.FromSeconds(4), new CancellationToken());
                 values = new KeyValueToValueEnumerable<TKey, TValue>(pairs);
-                tx.CommitAsync();
+                await tx.CommitAsync();
             }
 
             IQueryable<TValue> queryableValues = values.AsQueryable<TValue>();
@@ -69,6 +58,11 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
 
         private static SingleValueNode TranslateToOData(Expression expression)
         {
+            if (expression == null)
+            {
+                throw new ArgumentNullException("Expression argument is null");
+            }
+
             if (expression is BinaryExpression asBinaryExpression)
             {
                 if ((asBinaryExpression.Left is MemberExpression && asBinaryExpression.Right is ConstantExpression) ||
@@ -76,6 +70,15 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
                 {
                     MemberExpression asMemberExpression = asBinaryExpression.Left is MemberExpression ? asBinaryExpression.Left as MemberExpression : asBinaryExpression.Right as MemberExpression;
                     ConstantExpression asConstantExpression = asBinaryExpression.Left is ConstantExpression ? asBinaryExpression.Left as ConstantExpression : asBinaryExpression.Right as ConstantExpression;
+
+                    if (asConstantExpression == null)
+                    {
+                        throw new ArgumentNullException("Expression not well formed, constant expression null");
+                    }
+                    if (asMemberExpression == null)
+                    {
+                        throw new ArgumentNullException("Expression not well formed, member access expression null");
+                    }
 
                     ConstantNode constantNode = (ConstantNode)TranslateToOData(asConstantExpression);
                     SingleValuePropertyAccessNode propertyAccessNode = new SingleValuePropertyAccessNode(new ConstantNode(null), new DynamicProperty(asMemberExpression.Member, constantNode.TypeReference));
@@ -95,6 +98,10 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
             }
             else if (expression is ConstantExpression asConstantExpression)
             {
+                if (asConstantExpression == null)
+                {
+                    throw new ArgumentNullException("Constant expression is null");
+                }
                 return new ConstantNode(asConstantExpression.Value);
             }
             else

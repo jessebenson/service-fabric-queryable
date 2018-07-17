@@ -164,20 +164,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
             var profiles = getProfilesFromJTokens(result);
-            int profilesreturned = 0;
 
-            if (profiles.Contains(user0))
-                profilesreturned++;
-            if (profiles.Contains(user1))
-                profilesreturned++;
-            if (profiles.Contains(user2))
-                profilesreturned++;
-            if (profiles.Contains(user3))
-                profilesreturned++;
-            if (profiles.Contains(user4))
-                profilesreturned++;
-
-            Assert.AreEqual(1, profilesreturned);
+            Assert.AreEqual(1, profiles.Count);
         }
 
         [TestMethod]
@@ -190,20 +178,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
             var profiles = getProfilesFromJTokens(result);
-            int profilesreturned = 0;
 
-            if (profiles.Contains(user0))
-                profilesreturned++;
-            if (profiles.Contains(user1))
-                profilesreturned++;
-            if (profiles.Contains(user2))
-                profilesreturned++;
-            if (profiles.Contains(user3))
-                profilesreturned++;
-            if (profiles.Contains(user4))
-                profilesreturned++;
-
-            Assert.AreEqual(1, profilesreturned);
+            Assert.AreEqual(1, profiles.Count);
         }
 
         [TestMethod]
@@ -216,20 +192,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
             var profiles = getProfilesFromJTokens(result);
-            int profilesreturned = 0;
-
-            if (profiles.Contains(user0))
-                profilesreturned++;
-            if (profiles.Contains(user1))
-                profilesreturned++;
-            if (profiles.Contains(user2))
-                profilesreturned++;
-            if (profiles.Contains(user3))
-                profilesreturned++;
-            if (profiles.Contains(user4))
-                profilesreturned++;
-
-            Assert.AreEqual(0, profilesreturned);
+            Assert.AreEqual(0, profiles.Count);
         }
 
         [TestMethod]
@@ -242,20 +205,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
             var profiles = getProfilesFromJTokens(result);
-            int profilesreturned = 0;
-
-            if (profiles.Contains(user0))
-                profilesreturned++;
-            if (profiles.Contains(user1))
-                profilesreturned++;
-            if (profiles.Contains(user2))
-                profilesreturned++;
-            if (profiles.Contains(user3))
-                profilesreturned++;
-            if (profiles.Contains(user4))
-                profilesreturned++;
-
-            Assert.AreEqual(0, profilesreturned);
+            Assert.AreEqual(0, profiles.Count);
         }
 
         [TestMethod]

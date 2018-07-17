@@ -40,14 +40,14 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		}
 
         // Creates a trace identifier which traces through the queryable middleware with httpContext
-        private static string generateQueryTraceID(ServiceContext serviceContext)
+        private static string GenerateQueryTraceID(ServiceContext serviceContext)
         {
             return "Id: " + Guid.NewGuid() + " Partition: " + serviceContext.PartitionId + " Replica: " + serviceContext.ReplicaOrInstanceId;
         }
 
 		private async Task InvokeQueryHandler(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager)
 		{
-            httpContext.TraceIdentifier = generateQueryTraceID(serviceContext);
+            httpContext.TraceIdentifier = GenerateQueryTraceID(serviceContext);
 			try
 			{
 				var request = httpContext.Request;

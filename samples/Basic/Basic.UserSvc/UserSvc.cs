@@ -96,28 +96,38 @@ namespace Basic.UserSvc
 				}
 			}
 
-            // TEST TODO REMOVE
+            /* Example of LINQ querying on IReliableIndexedDictionary
+             
+               Sometimes you will want your application code to carry out queries against your RC as well, and LINQ is a great way to do so
+               It is important to note that currently the query must return type TValue, this is a bug
 
+               Also, when you write your query, make sure to put all your WHERE logic into a single WHERE statement
+               since each statement carries its own context the indexing middleware cannot efficiently operate on disjoint statements,
+               e.g. use  qdict.Where(x => x.Email == "user-0@example.com" && x.Age <= 20) instead of  
+                         qdict.Where(x => x.Email == "user-0@example.com").Where(x => x.Age <= 20)
+            */
+
+            // Create LINQ-Queryable state of IndexedDictionary
             QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile> qdict = new QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile>(indexed_users, StateManager);
 
+            // Create the same query two different ways
             var query = from UserProfile profile in qdict
                         where profile.Age >= 20 && profile.Email == "user-0@example.com" && profile.Age <= 20
                         select profile;
 
+            var query2 = qdict.Where(x => x.Email == "user-0@example.com" && x.Age <= 20);
+
+            // Execute the queries, add breakpoints here to see results
             foreach (UserProfile profile in query)
             {
 
             }
-
-            var query2 = qdict.Where(x => x.Email == "user-0@example.com");
 
 
             foreach (UserProfile profile in query2)
             {
 
             }
-            //
-
         }
     }
 }
