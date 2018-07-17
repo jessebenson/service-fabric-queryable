@@ -83,13 +83,6 @@ namespace Basic.UserSvc
 						},
 					};
 
-                    //System.Runtime.Serialization.Formatters.Binary.BinaryFormatter bf = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                    //MemoryStream ms = new MemoryStream();
-                    //byte[] Array;
-                    //bf.Serialize(ms, user);
-                    //Array = ms.ToArray();
-                    //Console.Write("Object size:" + Array.Length);
-
 					await users.SetAsync(tx, user.Name, user, TimeSpan.FromSeconds(4), cancellationToken);
                     await indexed_users.SetAsync(tx, user.Name, user, TimeSpan.FromSeconds(4), cancellationToken);
                     await tx.CommitAsync();

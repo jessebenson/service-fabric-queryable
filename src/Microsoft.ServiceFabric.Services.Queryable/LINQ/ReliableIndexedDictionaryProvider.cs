@@ -52,7 +52,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
 
             MethodInfo execute = typeof(ReliableIndexedDictionaryQueryContext).GetMethod("Execute", BindingFlags.Static | BindingFlags.NonPublic);
             execute = execute.MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue), innerType });
-            return ((Task<TResult>)execute.Invoke(null, new object[] { expression, StateManager, Dictionary })).Result;
+            Task<object> result = ((Task<object>)execute.Invoke(null, new object[] { expression, StateManager, Dictionary }));
+            return (TResult)result.Result;
         }
 
         public IQueryable<TResult> CreateQuery<TResult>(Expression expression)
