@@ -11,8 +11,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable
     class IEnumerableUtility
     {
 
-        // IAsyncEnumerables must be in same sorted order!
-        // Assumes no repeats
         public sealed class KeyValueToValueEnumerable<TKey, TValue> : IEnumerable<TValue>
         {
             private IEnumerable<KeyValuePair<TKey, TValue>> enum1;
@@ -53,6 +51,47 @@ namespace Microsoft.ServiceFabric.Services.Queryable
             public bool MoveNext()
             {
                 return enum1.MoveNext();
+            }
+
+            public void Reset()
+            {
+                enum1.Reset();
+            }
+        }
+
+        public sealed class KeyValueToValueAsyncEnumerable<TKey, TValue> : IAsyncEnumerable<TValue>
+        {
+            private IAsyncEnumerable<KeyValuePair<TKey, TValue>> enum1;
+
+            public KeyValueToValueAsyncEnumerable(IAsyncEnumerable<KeyValuePair<TKey, TValue>> enum1)
+            {
+                this.enum1 = enum1;
+            }
+
+            public IAsyncEnumerator<TValue> GetAsyncEnumerator()
+            {
+                return new KeyValueToValueAsyncEnumerator<TKey, TValue>(enum1.GetAsyncEnumerator());
+            }
+        }
+
+        private sealed class KeyValueToValueAsyncEnumerator<TKey, TValue> : IAsyncEnumerator<TValue>
+        {
+            private IAsyncEnumerator<KeyValuePair<TKey, TValue>> enum1;
+            public TValue Current => enum1.Current.Value;
+
+            public KeyValueToValueAsyncEnumerator(IAsyncEnumerator<KeyValuePair<TKey, TValue>> enum1)
+            {
+                this.enum1 = enum1;
+            }
+
+            public void Dispose()
+            {
+                enum1.Dispose();
+            }
+
+            public async Task<bool> MoveNextAsync(CancellationToken token)
+            {
+                return await enum1.MoveNextAsync(token);
             }
 
             public void Reset()

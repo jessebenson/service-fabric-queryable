@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
 {
-    internal class ExpressionTreeModifier<TKey, TValue, TResult> : ExpressionVisitor
+    internal class ExpressionTreeModifier<TKey, TValue> : ExpressionVisitor
         where TKey : IComparable<TKey>, IEquatable<TKey>
     {
         private IQueryable<TValue> queryableValues;
@@ -19,7 +19,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
         protected override Expression VisitConstant(ConstantExpression c)
         {
             // Replace the constant QueryableTerraServerData arg with the queryable Place collection. 
-            if (c.Type == typeof(QueryableReliableIndexedDictionary<TKey, TValue, TResult>))
+            if (c.Type == typeof(QueryableReliableIndexedDictionary<TKey, TValue, TValue>))
                 return Expression.Constant(this.queryableValues);
             else
                 return c;

@@ -334,6 +334,21 @@ namespace Microsoft.ServiceFabric.Services.Queryable
                     SingleValuePropertyAccessNode valueNode = asBONode.Left is SingleValuePropertyAccessNode ? asBONode.Left as SingleValuePropertyAccessNode : asBONode.Right as SingleValuePropertyAccessNode;
                     ConstantNode constantNode = asBONode.Left is ConstantNode ? asBONode.Left as ConstantNode : asBONode.Right as ConstantNode;
 
+                    // If constant node is LEFT and AccessNode is RIGHT, we should flip the OperatorKind to standardize to "access operator constant"
+                    // ie 21 gt Age is logical opposite of Age lt 21
+                    BinaryOperatorKind operatorKind = asBONode.OperatorKind;
+                    if (asBONode.Left is ConstantNode)
+                    {
+                        if (operatorKind == BinaryOperatorKind.GreaterThan)
+                            operatorKind = BinaryOperatorKind.LessThan;
+                        else if (operatorKind == BinaryOperatorKind.LessThan)
+                            operatorKind = BinaryOperatorKind.GreaterThan;
+                        else if (operatorKind == BinaryOperatorKind.LessThanOrEqual)
+                            operatorKind = BinaryOperatorKind.GreaterThanOrEqual;
+                        else if (operatorKind == BinaryOperatorKind.GreaterThanOrEqual)
+                            operatorKind = BinaryOperatorKind.LessThanOrEqual;
+                    }
+
                     string propertyName = valueNode.Property.Name;
                     Type propertyType = constantNode.Value.GetType(); //Possible reliance on type bad if name of property and provided type conflict?
 
@@ -350,7 +365,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
                     MethodInfo filterHelper = typeof(ReliableStateExtensions).GetMethod("FilterHelper", BindingFlags.Public | BindingFlags.Static);
                     filterHelper = filterHelper.MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue), propertyType });
-                    Task filterHelperTask = (Task)filterHelper.Invoke(null, new object[] { indexedDict, constantNode.Value, asBONode.OperatorKind, notIsApplied, cancellationToken, stateManager, propertyName });
+                    Task filterHelperTask = (Task)filterHelper.Invoke(null, new object[] { indexedDict, constantNode.Value, operatorKind, notIsApplied, cancellationToken, stateManager, propertyName });
                     await filterHelperTask;
                     return (IEnumerable<TKey>)filterHelperTask.GetType().GetProperty("Result").GetValue(filterHelperTask);
                 }

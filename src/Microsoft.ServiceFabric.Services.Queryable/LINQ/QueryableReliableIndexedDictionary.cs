@@ -27,7 +27,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
                 throw new ArgumentNullException("Expression can not be null");
             }
 
-            if (!typeof(IQueryable<TValue>).IsAssignableFrom(expression.Type))
+            if (!typeof(IQueryable<TResult>).IsAssignableFrom(expression.Type))
             {
                 throw new ArgumentOutOfRangeException("Expression and Queryable types do not match");
             }
@@ -37,7 +37,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
 
         }
 
-        public Type ElementType => typeof(TValue);
+        public Type ElementType => typeof(TResult);
 
         public Expression Expression { get; private set; }
 
@@ -45,7 +45,8 @@ namespace Microsoft.ServiceFabric.Services.Queryable.LINQ
 
         public IEnumerator<TResult> GetEnumerator()
         {
-            return (Provider.Execute<IEnumerable<TResult>>(Expression)).GetEnumerator();
+            var result = (Provider.Execute<IEnumerable<TResult>>(Expression));
+            return result.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()

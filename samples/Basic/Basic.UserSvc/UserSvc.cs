@@ -100,6 +100,8 @@ namespace Basic.UserSvc
                          qdict.Where(x => x.Email == "user-0@example.com").Where(x => x.Age <= 20)
             */
 
+            /* Remove comments to run Linq
+            
             // Create LINQ-Queryable state of IndexedDictionary
             QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile> qdict = new QueryableReliableIndexedDictionary<UserName, UserProfile, UserProfile>(indexed_users, StateManager);
 
@@ -115,12 +117,12 @@ namespace Basic.UserSvc
             {
 
             }
-
-
             foreach (UserProfile profile in query2)
             {
 
             }
+            
+            */
         }
     }
 }

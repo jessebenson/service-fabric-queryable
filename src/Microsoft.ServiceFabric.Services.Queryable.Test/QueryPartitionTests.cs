@@ -24,8 +24,6 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
     public class QueryPartitionTests
     {
         IReliableStateManager userDictionaryManager;
-        Mock<IReliableIndexedDictionary<Basic.Common.UserName, Basic.Common.UserProfile>> mockDictionary;
-
         private static readonly Basic.Common.UserProfile user0 = JToken.Parse("{\r\n  \"Email\": \"user-0@example.com\",\r\n  \"Age\": 20,\r\n  \"Name\": {\r\n    \"First\": \"First0\",\r\n    \"Last\": \"Last0\"\r\n  },\r\n  \"Address\": {\r\n    \"AddressLine1\": \"10 Main St.\",\r\n    \"AddressLine2\": null,\r\n    \"City\": \"Seattle\",\r\n    \"State\": \"WA\",\r\n    \"Zipcode\": 98117\r\n  }\r\n}").ToObject<Basic.Common.UserProfile>();
         private static readonly Basic.Common.UserProfile user1 = JToken.Parse("{\r\n  \"Email\": \"user-1@example.com\",\r\n  \"Age\": 20,\r\n  \"Name\": {\r\n    \"First\": \"First1\",\r\n    \"Last\": \"Last1\"\r\n  },\r\n  \"Address\": {\r\n    \"AddressLine1\": \"11 Main St.\",\r\n    \"AddressLine2\": null,\r\n    \"City\": \"Seattle\",\r\n    \"State\": \"WA\",\r\n    \"Zipcode\": 98117\r\n  }\r\n}").ToObject<Basic.Common.UserProfile>();
         private static readonly Basic.Common.UserProfile user2 = JToken.Parse("{\r\n  \"Email\": \"user-2@example.com\",\r\n  \"Age\": 20,\r\n  \"Name\": {\r\n    \"First\": \"First2\",\r\n    \"Last\": \"Last2\"\r\n  },\r\n  \"Address\": {\r\n    \"AddressLine1\": \"12 Main St.\",\r\n    \"AddressLine2\": null,\r\n    \"City\": \"Seattle\",\r\n    \"State\": \"WA\",\r\n    \"Zipcode\": 98117\r\n  }\r\n}").ToObject<Basic.Common.UserProfile>();
@@ -78,7 +76,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
                     FilterableIndex<UserName, Basic.Common.UserProfile, int>.CreateQueryableInstance("Age")).Result.HasValue);
         }
 
-        private ISet<Basic.Common.UserProfile> getProfilesFromJTokens(IEnumerable<JToken> result)
+        private ISet<Basic.Common.UserProfile> GetProfilesFromJTokens(IEnumerable<JToken> result)
         {
             SortedSet<Basic.Common.UserProfile> profiles = new SortedSet<Basic.Common.UserProfile>();
             foreach (JToken token in result)
@@ -129,7 +127,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
             IEnumerable<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
             Assert.IsTrue(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
             Assert.IsTrue(profiles.Contains(user2));
@@ -146,7 +144,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
 
 
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
             Assert.IsTrue(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
             Assert.IsTrue(profiles.Contains(user2));
@@ -159,11 +157,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$top", "1"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$top", "1")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.AreEqual(1, profiles.Count);
         }
@@ -173,11 +173,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$top", "1"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$top", "1")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.AreEqual(1, profiles.Count);
         }
@@ -187,11 +189,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$top", "0"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$top", "0")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
             Assert.AreEqual(0, profiles.Count);
         }
 
@@ -200,11 +204,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$top", "0"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$top", "0")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
             Assert.AreEqual(0, profiles.Count);
         }
 
@@ -213,11 +219,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email eq 'user-3@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email eq 'user-3@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -231,11 +239,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email eq 'user-3@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email eq 'user-3@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -249,11 +259,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age eq 21"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age eq 21")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -266,11 +278,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age eq 21"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age eq 21")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -284,11 +298,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age eq 21 and Value/Email eq 'user-3@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age eq 21 and Value/Email eq 'user-3@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -302,11 +318,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age eq 21 and Value/Email eq 'user-3@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age eq 21 and Value/Email eq 'user-3@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -316,15 +334,37 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         }
 
         [TestMethod]
+        public async Task ConstantComesFirst_Indexed_ReturnsUserProfile3()
+        {
+            var httpContext = new Mock<HttpContext>();
+            httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "21 gt Value/Age")
+            };
+
+            IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
+            var profiles = GetProfilesFromJTokens(result);
+
+            Assert.IsTrue(profiles.Contains(user0));
+            Assert.IsTrue(profiles.Contains(user1));
+            Assert.IsTrue(profiles.Contains(user2));
+            Assert.IsFalse(profiles.Contains(user3));
+            Assert.IsFalse(profiles.Contains(user4));
+        }
+
+        [TestMethod]
         public async Task FilterEqualsORQuery_NotIndexed_ReturnsUserProfile2_3_4()
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age eq 21 or Value/Email eq 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age eq 21 or Value/Email eq 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -338,11 +378,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age eq 21 or Value/Email eq 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age eq 21 or Value/Email eq 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -356,11 +398,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -374,11 +418,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -392,11 +438,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email ge 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email ge 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -410,11 +458,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email ge 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email ge 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -428,11 +478,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email le 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email le 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsTrue(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
@@ -446,11 +498,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email le 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email le 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsTrue(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
@@ -464,11 +518,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email lt 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email lt 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsTrue(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
@@ -482,11 +538,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email lt 'user-2@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email lt 'user-2@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsTrue(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
@@ -500,11 +558,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-0@example.com' and Value/Email lt 'user-4@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-0@example.com' and Value/Email lt 'user-4@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
@@ -518,11 +578,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-0@example.com' and Value/Email lt 'user-4@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-0@example.com' and Value/Email lt 'user-4@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
@@ -536,11 +598,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email ge 'user-0@example.com' and Value/Email le 'user-4@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email ge 'user-0@example.com' and Value/Email le 'user-4@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsTrue(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
@@ -554,11 +618,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email ge 'user-0@example.com' and Value/Email le 'user-4@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email ge 'user-0@example.com' and Value/Email le 'user-4@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsTrue(profiles.Contains(user0));
             Assert.IsTrue(profiles.Contains(user1));
@@ -572,11 +638,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age lt 20"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age lt 20")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -590,11 +658,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age lt 20"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age lt 20")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -608,11 +678,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age gt 30"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age gt 30")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -626,11 +698,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Age gt 30"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Age gt 30")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -644,11 +718,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-3@example.com' and Value/Email lt 'user-1@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-3@example.com' and Value/Email lt 'user-1@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));
@@ -662,11 +738,13 @@ namespace Microsoft.ServiceFabric.Services.Queryable.Test
         {
             var httpContext = new Mock<HttpContext>();
             httpContext.Setup(obj => obj.TraceIdentifier).Returns("Test trace");
-            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>();
-            query.Add(new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-3@example.com' and Value/Email lt 'user-1@example.com'"));
+            List<KeyValuePair<string, string>> query = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("$filter", "Value/Email gt 'user-3@example.com' and Value/Email lt 'user-1@example.com'")
+            };
 
             IEnumerable<JToken> result = await ReliableStateExtensions.QueryPartitionAsync(userDictionaryManager, httpContext.Object, "indexed_users", query, Guid.NewGuid(), new CancellationToken());
-            var profiles = getProfilesFromJTokens(result);
+            var profiles = GetProfilesFromJTokens(result);
 
             Assert.IsFalse(profiles.Contains(user0));
             Assert.IsFalse(profiles.Contains(user1));

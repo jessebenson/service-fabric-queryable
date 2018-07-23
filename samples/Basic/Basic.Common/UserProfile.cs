@@ -138,5 +138,14 @@ namespace Basic.Common
             //finally state
             return string.Compare(State, other.State);
         }
+
+        public override int GetHashCode()
+        {
+            int h0 = AddressLine1?.GetHashCode() ?? 0;
+            int h1 = AddressLine2?.GetHashCode() ?? 0;
+            int h2 = City?.GetHashCode() ?? 0;
+            int h3 = State?.GetHashCode() ?? 0;
+            return h0 ^ h1 ^ h2 ^ h3 ^ Zipcode;
+        }
     }
 }

@@ -53,6 +53,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					case "$format":
 						break;
 
+
 					default:
 						throw new ArgumentException($"'{queryParameter.Key}' option is not supported");
 				}

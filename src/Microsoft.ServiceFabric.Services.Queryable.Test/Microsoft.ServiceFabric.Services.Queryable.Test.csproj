@@ -189,6 +189,7 @@
   <ItemGroup>
     <Compile Include="AsyncEnumerableTests.cs" />
     <Compile Include="IEnumerableUtilityTests.cs" />
+    <Compile Include="LINQTests.cs" />
     <Compile Include="Mock\ITestInterface.cs" />
     <Compile Include="Mock\TestClass.cs" />
     <Compile Include="ODataExtensionsTests.cs" />
