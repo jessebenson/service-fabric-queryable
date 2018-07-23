@@ -52,6 +52,28 @@ If we added a secondary index on both `Age` and `Name`, then all the above queri
 
 Check out [`UserSvc`](samples/Basic/Basic.UserSvc/UserSvc.cs) in the  [BasicApp sample](samples/Basic) to see both an unindexed and an indexed dictionary being constructed.
 
+## Using LINQ to query ReliableIndexedDictionaries
+In addition to external requests through the OData middleware, ReliableIndexedDictionaries can be queried from your application code using LINQ. However, similarly to external queries, not all queries will work effectively with indexing. If your query is not supported, you should use `GetAllAsync()` to get the entire result set and apply your LINQ query against that.
+
+To create a queryable instance of your IReliableIndexedDictionary, call:
+```csharp
+var qd = new QueryableReliableIndexedDictionary<TKey, TValue, TValue>(indexedDictionary, stateManager);
+```
+Then you can carry out queries such as:
+```csharp
+
+var query = qd.Where(x => x.Age == 25);
+var query = qd.Where(x => x.Age >= 25).Select(x => x.Email);
+var query = from Person person in qd
+            where person.Age >= 25 && person.Email == "user-0@example.com"
+            select person.Email;
+var query = qd.Where(x => x.Name.CompareTo("Name1") >= 0);
+```
+Some import notes for querying:
+1. Put all your WHERE logic in a single `Where` statement and join using `&&` and `||` operators, as the query may not be efficient if it is spread across multiple WHERE clauses.
+2. If you want to compare an IComparable type that does not have ">", "<=" operators, you must give it in the form: `property.CompareTo(constant) '>,<,<=,=>' 0` 
+
+
 ## Getting Started
 
 1. Create a stateful ASP.NET Core services.
