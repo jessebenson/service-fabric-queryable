@@ -17,6 +17,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http.OData.Builder;
 using System.Web.Http.OData.Query;
+using Microsoft.Data.OData.Query.SemanticAst;
+using Microsoft.Data.Edm;
+using Microsoft.ServiceFabric.Data.Indexing.Persistent;
+using System.Linq.Expressions;
+using System.Linq.Dynamic;
+using Microsoft.Data.OData.Query;
+using Microsoft.ServiceFabric.Services.Queryable.Util;
+using Microsoft.AspNetCore.Http;
+using System.Web.Http.OData;
+using Microsoft.CSharp;
+using Microsoft.ServiceFabric.Services.Queryable.LINQ;
 
 namespace Microsoft.ServiceFabric.Services.Queryable
 {
@@ -55,20 +66,20 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// Query the reliable collection with the given name from the reliable state manager using the given query parameters.
 		/// </summary>
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
-		/// <param name="context">Stateful Service Context.</param>
+		/// <param name="serviceContext">Stateful Service Context.</param>
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <param name="query">OData query parameters.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
 		public static async Task<IEnumerable<JToken>> QueryAsync(this IReliableStateManager stateManager,
-			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
+			StatefulServiceContext serviceContext, HttpContext httpContext, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
 		{
 			// Get the list of partitions (excluding the executing partition).
-			var partitions = await StatefulServiceUtils.GetPartitionsAsync(context).ConfigureAwait(false);
+			var partitions = await StatefulServiceUtils.GetPartitionsAsync(serviceContext).ConfigureAwait(false);
 
 			// Query all service partitions concurrently.
-			var remoteQueries = partitions.Select(p => QueryPartitionAsync(p, context, collection, query, cancellationToken));
-			var localQuery = stateManager.QueryPartitionAsync(collection, query, context.PartitionId, cancellationToken);
+			var remoteQueries = partitions.Select(p => QueryPartitionAsync(p, serviceContext, collection, query, cancellationToken));
+			var localQuery = stateManager.QueryPartitionAsync(httpContext, collection, query, serviceContext.PartitionId, cancellationToken);
 			var queries = remoteQueries.Concat(new[] { localQuery });
 
 			// Aggregate all query results into a single list.
@@ -76,7 +87,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var results = queryResults.SelectMany(r => r);
 
 			// Run the aggregation query to get the final results (e.g. for top, orderby, project).
-			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
+			var reliableState = await stateManager.GetQueryableState(httpContext, collection).ConfigureAwait(false);
 			var entityType = reliableState.GetEntityType();
 			var objects = results.Select(r => r.ToObject(entityType));
 			var queryResult = ApplyQuery(objects, entityType, query, aggregate: true);
@@ -95,36 +106,419 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="partitionId">Partition id.</param>
 		/// <param name="cancellationToken">Cancellation token.</param>
 		/// <returns>The json serialized results of the query.</returns>
-		public static async Task<IEnumerable<JToken>> QueryPartitionAsync(this IReliableStateManager stateManager,
+		public static async Task<IEnumerable<JToken>> QueryPartitionAsync(this IReliableStateManager stateManager, HttpContext httpContext,
 			string collection, IEnumerable<KeyValuePair<string, string>> query, Guid partitionId, CancellationToken cancellationToken)
 		{
-			// Find the reliable state.
-			var reliableState = await stateManager.GetQueryableState(collection).ConfigureAwait(false);
 
-			using (var tx = stateManager.CreateTransaction())
-			{
-				// Get the data from the reliable state.
-				var results = await reliableState.GetAsyncEnumerable(tx, stateManager, partitionId, cancellationToken).ConfigureAwait(false);
+            // Find the reliable state (boilerplate)
+            IReliableState reliableState = await stateManager.GetQueryableState(httpContext, collection).ConfigureAwait(false);
+            var entityType = reliableState.GetEntityType(); // Type Information about the dictionary
+            // Types of the objects in the dictionary, used by rest of types
+            Type dictionaryKeyType = entityType.GenericTypeArguments[0];
+            Type dictionaryValueType = entityType.GenericTypeArguments[1];
 
-				// Filter the data.
-				var entityType = reliableState.GetEntityType();
-				results = ApplyQuery(results, entityType, query, aggregate: false);
+            // Generate an ODataQuery Object
+            ODataQueryContext queryContext = QueryCache.GetQueryContext(entityType);
+            ODataQueryOptions queryOptions = new ODataQueryOptions(query, queryContext, aggregate: false);
 
-				// Convert to json.
-				var json = await results.SelectAsync(r => JObject.FromObject(r)).AsEnumerable().ConfigureAwait(false);
+            MethodInfo tryFilterQuery = typeof(ReliableStateExtensions).GetMethod("TryFilterQuery", BindingFlags.NonPublic | BindingFlags.Static);
+            tryFilterQuery = tryFilterQuery.MakeGenericMethod(new Type[] { dictionaryKeyType, dictionaryValueType });
+            Task filteredKVTask = (Task)tryFilterQuery.Invoke(null, new object[] { queryOptions, stateManager, collection, cancellationToken });
+            await filteredKVTask;
+            dynamic filteredKV = filteredKVTask.GetType().GetProperty("Result").GetValue(filteredKVTask);
 
-				await tx.CommitAsync().ConfigureAwait(false);
+            // It was not filterable, have to use AsyncEnumerable over the original dictionary
+            if (filteredKV == null)
+            {
+                // If the query does not contain a valid $filter clause or there is no secondary index for that $filter, does an entire dictionary lookup
+                using (var tx = stateManager.CreateTransaction())
+                {
+                    // Get the data from the reliable state
+                    var results = await reliableState.GetAsyncEnumerable(tx, stateManager, partitionId, cancellationToken).ConfigureAwait(false);
 
-				// Return the filtered data as json.
-				return json;
-			}
+                    // Filter the data
+                    // var entityType = reliableState.GetEntityType();
+                    results = ApplyQuery(results, entityType, query, aggregate: false);
+
+                    // Convert to json
+                    var json = await results.SelectAsync(r => JObject.FromObject(r)).AsEnumerable().ConfigureAwait(false);
+
+                    await tx.CommitAsync().ConfigureAwait(false);
+
+                    // Return the filtered data as json
+                    return json;
+                }
+            }
+            else
+            {
+                // Turns List to IEnumerable, thens turn to IAsyncEnumerable, then turns to IAsyncEnumerable<Entity> which is what Query infra wants
+                MethodInfo asAsyncEnumerableMethod = typeof(AsyncEnumerable).GetMethod("AsAsyncEnumerable").MakeGenericMethod(typeof(KeyValuePair<,>).MakeGenericType(new Type[] { dictionaryKeyType, dictionaryValueType })); ;
+                filteredKV = asAsyncEnumerableMethod.Invoke(null, new object[] { filteredKV });
+                MethodInfo asEntityMethod = typeof(ReliableStateExtensions).GetMethod("AsEntity", BindingFlags.NonPublic | BindingFlags.Static);
+                asEntityMethod = asEntityMethod.MakeGenericMethod(new Type[] { dictionaryKeyType, dictionaryValueType });
+                filteredKV = asEntityMethod.Invoke(null, new object[] { filteredKV, partitionId, cancellationToken });
+
+                // Aplies the query to the results
+                dynamic queryResults = ApplyQuery(filteredKV, entityType, query, aggregate: false);
+
+                // Creates a lambda that will turn each element in results to a json object
+                ParameterExpression objectParameterExpression = Expression.Parameter(typeof(object), "r"); //dictvaluetype is true type of object
+                Expression jobjectExpression = Expression.Call(typeof(JObject).GetMethod("FromObject", new Type[] { typeof(object) }), objectParameterExpression);
+                LambdaExpression jsonLambda = Expression.Lambda(jobjectExpression, new ParameterExpression[] { objectParameterExpression });
+
+                // Converts to json
+                MethodInfo selectAsync = typeof(AsyncEnumerable).GetMethod("SelectAsync").MakeGenericMethod(new Type[] { typeof(object), typeof(JObject) });
+                dynamic jsonAsyncEnumerable = selectAsync.Invoke(null, new object[] { queryResults, (Func<object, JObject>)jsonLambda.Compile() });
+
+                // Converts json return to Enumerable of json
+                MethodInfo asyncEnumerableAsEnumerableMethod = typeof(AsyncEnumerable).GetMethod("AsEnumerable").MakeGenericMethod(typeof(JObject));
+                Task jsonTask = (Task)asyncEnumerableAsEnumerableMethod.Invoke(null, new object[] { jsonAsyncEnumerable, default(CancellationToken) });
+                await jsonTask;
+                IEnumerable<JObject> json = (IEnumerable<JObject>)jsonTask.GetType().GetProperty("Result").GetValue(jsonTask);
+
+                // Return the filtered data as json
+                return json;
+            }
 		}
 
-		/// <summary>
-		/// This implementation should not leak into the core Queryable code.  It is dependent on the specific protocol
-		/// used to communicate with the other partitions (HTTP over ReverseProxy), and should be hidden behind an interface.
-		/// </summary>
-		private static async Task<IEnumerable<JToken>> QueryPartitionAsync(Partition partition,
+        private static async Task<IReliableIndexedDictionary<TKey, TValue>> GetIndexedDictionaryByPropertyName<TKey, TValue, TFilter>(IReliableStateManager stateManager, string dictName, string propertyName)
+                    where TKey : IComparable<TKey>, IEquatable<TKey>
+                    where TFilter : IComparable<TFilter>, IEquatable<TFilter>
+        {
+            FilterableIndex<TKey, TValue, TFilter> filter = FilterableIndex<TKey, TValue, TFilter>.CreateQueryableInstance(propertyName);
+            ConditionalValue<IReliableIndexedDictionary<TKey, TValue>> dictOption = await stateManager.TryGetIndexedAsync<TKey, TValue>(dictName, new[] { filter });
+            if (dictOption.HasValue) {
+                return dictOption.Value;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private static async Task<IEnumerable<KeyValuePair<TKey, TValue>>> TryFilterQuery<TKey, TValue>(ODataQueryOptions options, IReliableStateManager stateManager, string dictName, CancellationToken cancellationToken)
+            where TKey : IComparable<TKey>, IEquatable<TKey>
+        {
+            if (options.Filter == null)
+            {
+                return null;
+            }
+            SingleValueNode root = options.Filter.FilterClause.Expression;
+            IEnumerable<TKey> filteredKeys = await TryFilterNode<TKey, TValue>(root, false, stateManager, dictName, cancellationToken);
+
+            // Expression was not filterable
+            if (filteredKeys == null)
+            {
+                return null;
+            }
+            else
+            {
+                ConditionalValue<IReliableIndexedDictionary<TKey, TValue>> dictOption = await stateManager.TryGetIndexedAsync<TKey, TValue>(dictName, new IIndexDefinition<TKey, TValue>[] { } );
+                if (dictOption.HasValue)
+                {
+                    using (var tx = stateManager.CreateTransaction())
+                    {
+                        IEnumerable<KeyValuePair<TKey, TValue>> result = await dictOption.Value.GetAllAsync(tx, filteredKeys, TimeSpan.FromSeconds(4), cancellationToken);
+                        await tx.CommitAsync();
+                        return result;
+                    }
+                }
+
+                return null; // Baseline Dictionary not found
+            }
+        }
+
+        public static async Task<IEnumerable<TKey>> TryFilterNode<TKey, TValue>(SingleValueNode node, bool notIsApplied, IReliableStateManager stateManager, string dictName, CancellationToken cancellationToken)
+            where TKey : IComparable<TKey>, IEquatable<TKey>
+        {
+            if (node is UnaryOperatorNode asUONode)
+            {
+                // If NOT, negate tree and return isFilterable
+                if (asUONode.OperatorKind == Microsoft.Data.OData.Query.UnaryOperatorKind.Not)
+                {
+                    if (isFilterableNode2(asUONode.Operand, !notIsApplied))
+                    {
+                        return await TryFilterNode<TKey, TValue>(asUONode.Operand, !notIsApplied, stateManager, dictName, cancellationToken);
+                    }
+
+                    return null;
+                }
+                else
+                {
+                    throw new NotSupportedException("Does not support the Negate unary operator");
+                }
+            }
+
+            else if (node is BinaryOperatorNode asBONode)
+            {
+                // Filterable(A) AND Filterable(B)      => Intersect(Filter(A), Filter(B))
+                // !Filterable(A) AND Filterable(B)     => Filter(B)
+                // Filterable(A) AND !Filterable(B)     => Filter(A)
+                // !Filterable(A) AND !Filterable(B)    => NF
+                if ((asBONode.OperatorKind == BinaryOperatorKind.And && !notIsApplied) ||
+                    (asBONode.OperatorKind == BinaryOperatorKind.Or && notIsApplied))
+                {
+                    bool leftFilterable = isFilterableNode2(asBONode.Left, notIsApplied);
+                    bool rightFilterable = isFilterableNode2(asBONode.Right, notIsApplied);
+
+                    // Both are filterable: intersect
+                    if (leftFilterable && rightFilterable)
+                    {
+                        IEnumerable<TKey> leftKeys = await TryFilterNode<TKey, TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken);
+                        IEnumerable<TKey> rightKeys = await TryFilterNode<TKey, TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken);
+
+                        if (leftKeys != null && rightKeys != null)
+                        {
+                            return new IEnumerableUtility.IntersectEnumerable<TKey>(leftKeys, rightKeys);
+                        }
+                        else if (leftKeys != null)
+                        {
+                            return await TryFilterNode<TKey, TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken);
+                        }
+                        else if (rightKeys != null)
+                        {
+                            return await TryFilterNode<TKey, TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken);
+                        }
+                        else
+                        {
+                            return null; //Both queries were candidates for filtering but the filterable indexes did not exist
+                        }
+                    }
+                    else if (leftFilterable)
+                    {
+                        return await TryFilterNode<TKey, TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken);
+                    }
+                    else if (rightFilterable)
+                    {
+                        return await TryFilterNode<TKey, TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken);
+                    }
+                    else
+                    {
+                        return null; // This should never be hit because if !Filterable(Left) && !Filterable(Right) => !Filterable(Me)
+                    }
+
+                }
+                // Filterable(A) OR Filterable(B)      => Union(Filter(A), Filter(B))
+                // !Filterable(A) OR Filterable(B)     => NF
+                // Filterable(A) OR !Filterable(B)     => NF
+                // !Filterable(A) OR !Filterable(B)    => NF
+                else if ((asBONode.OperatorKind == BinaryOperatorKind.Or && !notIsApplied) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.And && notIsApplied))
+                {
+                    bool leftFilterable = isFilterableNode2(asBONode.Left, notIsApplied);
+                    bool rightFilterable = isFilterableNode2(asBONode.Right, notIsApplied);
+
+                    // Both are filterable queries: intersect, however if they are null that means there is no index for this property
+                    if (leftFilterable && rightFilterable)
+                    {
+                        IEnumerable<TKey> leftKeys = await TryFilterNode<TKey, TValue>(asBONode.Left, notIsApplied, stateManager, dictName, cancellationToken);
+                        IEnumerable<TKey> rightKeys = await TryFilterNode<TKey, TValue>(asBONode.Right, notIsApplied, stateManager, dictName, cancellationToken);
+
+                        if (leftKeys != null && rightKeys != null)
+                        {
+                            return new IEnumerableUtility.UnionEnumerable<TKey>(leftKeys, rightKeys);
+                        }
+                    }
+
+                    return null;
+                }
+                // If Equals, >=, >, <, <=
+                else if ((asBONode.OperatorKind == BinaryOperatorKind.Equal && !notIsApplied) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.NotEqual && notIsApplied) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.GreaterThan) || 
+                         (asBONode.OperatorKind == BinaryOperatorKind.GreaterThanOrEqual) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.LessThan) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.LessThanOrEqual))
+                {
+                    // Resolve the arbitrary order of the request
+                    SingleValuePropertyAccessNode valueNode = asBONode.Left is SingleValuePropertyAccessNode ? asBONode.Left as SingleValuePropertyAccessNode : asBONode.Right as SingleValuePropertyAccessNode;
+                    ConstantNode constantNode = asBONode.Left is ConstantNode ? asBONode.Left as ConstantNode : asBONode.Right as ConstantNode;
+
+                    // If constant node is LEFT and AccessNode is RIGHT, we should flip the OperatorKind to standardize to "access operator constant"
+                    // ie 21 gt Age is logical opposite of Age lt 21
+                    BinaryOperatorKind operatorKind = asBONode.OperatorKind;
+                    if (asBONode.Left is ConstantNode)
+                    {
+                        if (operatorKind == BinaryOperatorKind.GreaterThan)
+                            operatorKind = BinaryOperatorKind.LessThan;
+                        else if (operatorKind == BinaryOperatorKind.LessThan)
+                            operatorKind = BinaryOperatorKind.GreaterThan;
+                        else if (operatorKind == BinaryOperatorKind.LessThanOrEqual)
+                            operatorKind = BinaryOperatorKind.GreaterThanOrEqual;
+                        else if (operatorKind == BinaryOperatorKind.GreaterThanOrEqual)
+                            operatorKind = BinaryOperatorKind.LessThanOrEqual;
+                    }
+
+                    string propertyName = valueNode.Property.Name;
+                    Type propertyType = constantNode.Value.GetType(); //Possible reliance on type bad if name of property and provided type conflict?
+
+                    MethodInfo getIndexedDictionaryByPropertyName = typeof(ReliableStateExtensions).GetMethod("GetIndexedDictionaryByPropertyName", BindingFlags.NonPublic | BindingFlags.Static);
+                    getIndexedDictionaryByPropertyName = getIndexedDictionaryByPropertyName.MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue), propertyType });
+                    Task indexedDictTask = (Task)getIndexedDictionaryByPropertyName.Invoke(null, new object[] { stateManager, dictName, propertyName });
+                    await indexedDictTask;
+                    var indexedDict = indexedDictTask.GetType().GetProperty("Result").GetValue(indexedDictTask);
+
+                    if (indexedDict == null)
+                    {
+                        return null; // Filter does not exist or dictionary does not exist
+                    }
+
+                    MethodInfo filterHelper = typeof(ReliableStateExtensions).GetMethod("FilterHelper", BindingFlags.Public | BindingFlags.Static);
+                    filterHelper = filterHelper.MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue), propertyType });
+                    Task filterHelperTask = (Task)filterHelper.Invoke(null, new object[] { indexedDict, constantNode.Value, operatorKind, notIsApplied, cancellationToken, stateManager, propertyName });
+                    await filterHelperTask;
+                    return (IEnumerable<TKey>)filterHelperTask.GetType().GetProperty("Result").GetValue(filterHelperTask);
+                }
+                // We choose to mark NotEquals as unfilterable. Theoretically with indexes with low number of keys may be slightly faster than not-filtering
+                // But generally is same order of magnitude as not using filters
+                else if ((asBONode.OperatorKind == BinaryOperatorKind.Equal && notIsApplied) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.NotEqual && !notIsApplied))
+                {
+                    return null;
+                }
+                else
+                {
+                    throw new NotSupportedException("Does not support Add, Subtract, Modulo, Multiply, Divide operations.");
+                }
+            }
+            else if (node is ConvertNode asCNode)
+            {
+                return await TryFilterNode<TKey, TValue>(asCNode.Source, notIsApplied, stateManager, dictName, cancellationToken);
+            }
+            else
+            {
+                throw new NotSupportedException("Only supports Binary and Unary operator nodes");
+            }
+        }
+
+        // This is a seperate method because we now know PropertyType, so want to not use reflection in above method
+        public static async Task<IEnumerable<TKey>> FilterHelper<TKey, TValue, TFilter>(IReliableIndexedDictionary<TKey, TValue> dictionary, TFilter constant, BinaryOperatorKind strategy, bool notIsApplied, CancellationToken cancellationToken, IReliableStateManager stateManager, string propertyName)
+            where TFilter : IComparable<TFilter>, IEquatable<TFilter>
+            where TKey : IComparable<TKey>, IEquatable<TKey>
+        {
+
+            using (var tx = stateManager.CreateTransaction())
+            {
+                IEnumerable<TKey> result;
+                // Equals
+                if ((strategy == BinaryOperatorKind.Equal && !notIsApplied) ||
+                    (strategy == BinaryOperatorKind.NotEqual && notIsApplied))
+                {
+                    result =  await dictionary.FilterKeysOnlyAsync(tx, propertyName, constant, TimeSpan.FromSeconds(4), cancellationToken);
+                }
+                else if ((strategy == BinaryOperatorKind.GreaterThan && !notIsApplied) ||
+                         (strategy == BinaryOperatorKind.LessThan && notIsApplied))
+                {
+                    result = await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Exclusive, TimeSpan.FromSeconds(4), cancellationToken);
+                }
+                else if ((strategy == BinaryOperatorKind.GreaterThanOrEqual && !notIsApplied) ||
+                         (strategy == BinaryOperatorKind.LessThanOrEqual && notIsApplied))
+                {
+                    result = await dictionary.RangeFromFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Inclusive, TimeSpan.FromSeconds(4), cancellationToken);
+                }
+                else if ((strategy == BinaryOperatorKind.LessThan && !notIsApplied) ||
+                         (strategy == BinaryOperatorKind.GreaterThan && notIsApplied))
+                {
+                    result = await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Exclusive, TimeSpan.FromSeconds(4), cancellationToken);
+                }
+                else if ((strategy == BinaryOperatorKind.LessThanOrEqual && !notIsApplied) ||
+                         (strategy == BinaryOperatorKind.GreaterThanOrEqual && notIsApplied))
+                {
+                    result = await dictionary.RangeToFilterKeysOnlyAsync(tx, propertyName, constant, RangeFilterType.Inclusive, TimeSpan.FromSeconds(4), cancellationToken);
+                }
+                else
+                {
+                    // Bad State, should never hit
+                    throw new NotSupportedException("Does not support Add, Subtract, Modulo, Multiply, Divide operations.");
+                }
+                await tx.CommitAsync();
+                return result;
+            }
+
+        }
+
+        private static bool isFilterableNode2(SingleValueNode node, bool notIsApplied)
+        {
+            if (node is UnaryOperatorNode asUONode)
+            {
+                // If NOT, negate tree and return isFilterable
+                if (asUONode.OperatorKind == UnaryOperatorKind.Not)
+                {
+                    return isFilterableNode2(asUONode.Operand, !notIsApplied);
+                }
+                else
+                {
+                    throw new NotSupportedException("Does not support the Negate unary operator");
+                }
+            }
+            else if (node is BinaryOperatorNode asBONode)
+            {
+                // Filterable(A) AND Filterable(B)      => Intersect(Filter(A), Filter(B))
+                // !Filterable(A) AND Filterable(B)     => Filter(B)
+                // Filterable(A) AND !Filterable(B)     => Filter(A)
+                // !Filterable(A) AND !Filterable(B)    => NF
+                if ((asBONode.OperatorKind == BinaryOperatorKind.And && !notIsApplied) ||
+                    (asBONode.OperatorKind == BinaryOperatorKind.Or && notIsApplied))
+                {
+                    if (!isFilterableNode2(asBONode.Left, notIsApplied) && !isFilterableNode2(asBONode.Right, notIsApplied))
+                    {
+                        return false;
+                    }
+
+                    return true;
+                }
+                // Filterable(A) OR Filterable(B)      => Union(Filter(A), Filter(B))
+                // !Filterable(A) OR Filterable(B)     => NF
+                // Filterable(A) OR !Filterable(B)     => NF
+                // !Filterable(A) OR !Filterable(B)    => NF
+                else if ((asBONode.OperatorKind == BinaryOperatorKind.Or && !notIsApplied) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.And && notIsApplied))
+                {
+                    if (isFilterableNode2(asBONode.Left, notIsApplied) && isFilterableNode2(asBONode.Right, notIsApplied))
+                    {
+                        return true;
+                    }
+
+                    return false;
+                }
+                // If Equals, >=, >, <, <=
+                else if ((asBONode.OperatorKind == BinaryOperatorKind.Equal && !notIsApplied) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.NotEqual && notIsApplied) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.GreaterThan) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.GreaterThanOrEqual) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.LessThan) ||
+                         (asBONode.OperatorKind == BinaryOperatorKind.LessThanOrEqual))
+                {
+                    return true;
+                }
+                // We choose to mark NotEquals as unfilterable. Theoretically with indexes with low number of keys may be slightly faster than not-filtering
+                // But generally is same order of magnitude as not using filters
+                else if ((asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.Equal && notIsApplied) ||
+                         (asBONode.OperatorKind == Microsoft.Data.OData.Query.BinaryOperatorKind.NotEqual && !notIsApplied))
+                {
+                    return false;
+                }
+                else
+                {
+                    throw new NotSupportedException("Does not support Add, Subtract, Modulo, Multiply, Divide operations.");
+                }
+            }
+            else if (node is ConvertNode asCNode)
+            {
+                return isFilterableNode2(asCNode.Source, notIsApplied);
+            }
+            else
+            {
+                throw new NotSupportedException("Only supports Binary and Unary operator nodes");
+            }
+        } 
+
+
+        /// <summary>
+        /// This implementation should not leak into the core Queryable code.  It is dependent on the specific protocol
+        /// used to communicate with the other partitions (HTTP over ReverseProxy), and should be hidden behind an interface.
+        /// </summary>
+        private static async Task<IEnumerable<JToken>> QueryPartitionAsync(Partition partition,
 			StatefulServiceContext context, string collection, IEnumerable<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
 		{
 			string endpoint = await StatefulServiceUtils.GetPartitionEndpointAsync(context, partition).ConfigureAwait(false);
@@ -140,7 +534,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="operations">Operations (add/update/delete) to perform against collections in the partition.</param>
 		/// <returns>A list of status codes indicating success/failure of the operations.</returns>
-		public static async Task<List<EntityOperationResult>> ExecuteAsync(this IReliableStateManager stateManager, EntityOperation<JToken, JToken>[] operations)
+		public static async Task<List<EntityOperationResult>> ExecuteAsync(this IReliableStateManager stateManager, HttpContext httpContext, EntityOperation<JToken, JToken>[] operations)
 		{
 			var results = new List<EntityOperationResult>();
 			using (var tx = stateManager.CreateTransaction())
@@ -154,7 +548,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 					try
 					{
 						// Get the reliable dictionary for this operation.
-						var dictionary = await stateManager.GetQueryableState(operation.Collection).ConfigureAwait(false);
+						var dictionary = await stateManager.GetQueryableState(httpContext, operation.Collection).ConfigureAwait(false);
 
 						// Execute operation.
 						if (operation.Operation == Operation.Add)
@@ -297,17 +691,24 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <param name="stateManager">Reliable state manager for the replica.</param>
 		/// <param name="collection">Name of the reliable collection.</param>
 		/// <returns>The reliable collection that supports querying.</returns>
-		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, string collection)
+		private static async Task<IReliableState> GetQueryableState(this IReliableStateManager stateManager, HttpContext httpContext, string collection)
 		{
 			// Find the reliable state.
 			var reliableStateResult = await stateManager.TryGetAsync<IReliableState>(collection).ConfigureAwait(false);
 			if (!reliableStateResult.HasValue)
-				throw new ArgumentException($"IReliableState '{collection}' not found.");
+            {
+                QueryableEventSource.Log.ClientError(httpContext.TraceIdentifier, $"This collection : {collection} does not exist", 400);
+                throw new ArgumentException($"IReliableState '{collection}' not found in this state manager.");
+            }
+
 
 			// Verify the state is a reliable dictionary.
 			var reliableState = reliableStateResult.Value;
 			if (!reliableState.ImplementsGenericType(typeof(IReliableDictionary<,>)))
-				throw new ArgumentException($"IReliableState '{collection}' must be an IReliableDictionary.");
+            {
+                QueryableEventSource.Log.ClientError(httpContext.TraceIdentifier, $"Collection must be an IReliableDictionary2 to be queried against", 400);
+                throw new ArgumentException($"IReliableState '{collection}' must be an IReliableDictionary.");
+            }
 
 			return reliableState;
 		}

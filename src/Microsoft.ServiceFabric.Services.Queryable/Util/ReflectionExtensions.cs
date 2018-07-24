@@ -30,7 +30,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		/// <returns>Typed enumerable.</returns>
 		public static IEnumerable CastEnumerable(this IEnumerable<object> enumerable, Type type)
 		{
-			var castMethod = typeof(Enumerable).GetMethod("Cast", BindingFlags.Static | BindingFlags.Public);
+			var castMethod = typeof(System.Linq.Enumerable).GetMethod("Cast", BindingFlags.Static | BindingFlags.Public);
 			var castGenericMethod = castMethod.MakeGenericMethod(type);
 			return (IEnumerable)castGenericMethod.Invoke(null, new object[] { enumerable });
 		}

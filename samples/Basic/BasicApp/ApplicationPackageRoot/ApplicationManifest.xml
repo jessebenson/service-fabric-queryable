@@ -33,7 +33,10 @@
          The attribute ServiceTypeName below must match the name defined in the imported ServiceManifest.xml file. -->
     <Service Name="CarSvc">
       <StatefulService ServiceTypeName="Basic.CarSvcType" TargetReplicaSetSize="[Basic.CarSvc_TargetReplicaSetSize]" MinReplicaSetSize="[Basic.CarSvc_MinReplicaSetSize]">
-        <UniformInt64Partition PartitionCount="[Basic.CarSvc_PartitionCount]" LowKey="-9223372036854775808" HighKey="9223372036854775807" />
+        <NamedPartition>
+          <Partition Name="one" />
+          <Partition Name="two" />
+        </NamedPartition>
       </StatefulService>
     </Service>
     <Service Name="ProductSvc">

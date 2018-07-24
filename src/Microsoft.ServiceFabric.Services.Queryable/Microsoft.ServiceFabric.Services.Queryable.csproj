@@ -14,11 +14,14 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNet.WebApi.OData" Version="5.7.0" />
-    <PackageReference Include="Microsoft.AspNetCore" Version="1.1.2" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.1" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="Microsoft.Data.OData" Version="5.8.3" />
-    <PackageReference Include="Microsoft.ServiceFabric" Version="6.2.274" />
-    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.1.274" />
-    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
+    <PackageReference Include="Microsoft.ServiceFabric" Version="6.2.283" />
+    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.1.283" />
+    <PackageReference Include="Microsoft.ServiceFabric.Data.Indexing.Persistent" Version="3.1.283" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="System.Linq.Dynamic" Version="1.0.7" />
   </ItemGroup>
 
 </Project>

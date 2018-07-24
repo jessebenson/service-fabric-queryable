@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using Microsoft.ServiceFabric.Data;
+using Microsoft.ServiceFabric.Services.Queryable.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -38,14 +39,20 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			return _next.Invoke(httpContext);
 		}
 
+        // Creates a trace identifier which traces through the queryable middleware with httpContext
+        private static string GenerateQueryTraceID(ServiceContext serviceContext)
+        {
+            return "Id: " + Guid.NewGuid() + " Partition: " + serviceContext.PartitionId + " Replica: " + serviceContext.ReplicaOrInstanceId;
+        }
+
 		private async Task InvokeQueryHandler(HttpContext httpContext, StatefulServiceContext serviceContext, IReliableStateManager stateManager)
 		{
+            httpContext.TraceIdentifier = GenerateQueryTraceID(serviceContext);
 			try
 			{
 				var request = httpContext.Request;
 				var segments = request.Path.Value.Split(PathSplit, StringSplitOptions.RemoveEmptyEntries);
-
-				AddAccessControlHeaders(httpContext.Request, httpContext.Response);
+                AddAccessControlHeaders(httpContext.Request, httpContext.Response);
 
 				if (request.Method == HttpMethods.Options)
 				{
@@ -54,18 +61,21 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				}
 				else if (request.Method == HttpMethods.Get && request.Path == "/$query/$metadata")
 				{
-					// GET $query/$metadata
+                    // GET $query/$metadata;
+                    QueryableEventSource.Log.Info(serviceContext.TraceId, "Query metadata request received");
 					await GetMetadataAsync(httpContext, serviceContext, stateManager).ConfigureAwait(false);
 				}
 				else if (request.Method == HttpMethods.Get && segments.Length == 2)
 				{
-					// GET $query/<collection-name>
-					await QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[1]).ConfigureAwait(false);
+                    // GET $query/<collection-name>
+                    QueryableEventSource.Log.Info(serviceContext.TraceId, "Query received with parameters: " + segments[1]);
+                    await QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[1]).ConfigureAwait(false);
 				}
 				else if (request.Method == HttpMethods.Get && segments.Length == 3 && Guid.TryParse(segments[1], out Guid partitionId))
 				{
-					// GET $query/<partition-id>/<collection-name>
-					await QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[2], partitionId).ConfigureAwait(false);
+                    // GET $query/<partition-id>/<collection-name>
+                    QueryableEventSource.Log.Info(serviceContext.TraceId, "Query received with parameters: " + segments[2]);
+                    await QueryCollectionAsync(httpContext, serviceContext, stateManager, segments[2], partitionId).ConfigureAwait(false);
 				}
 				else if (request.Method == HttpMethods.Post && segments.Length == 1)
 				{
@@ -74,8 +84,9 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 				}
 				else
 				{
-					// Unknown queryable method.
-					await NotFound(httpContext).ConfigureAwait(false);
+                    // Unknown queryable method.
+                    QueryableEventSource.Log.ClientError(serviceContext.TraceId, "Unknown queryable url format", 400);
+                    await NotFound(httpContext).ConfigureAwait(false);
 				}
 			}
 			catch (Exception e)
@@ -100,7 +111,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 		{
 			// Query the reliable collection for all partitions.
 			var query = httpContext.Request.Query.Select(p => new KeyValuePair<string, string>(p.Key, p.Value));
-			var results = await stateManager.QueryAsync(serviceContext, collection, query, CancellationToken.None).ConfigureAwait(false);
+			var results = await stateManager.QueryAsync(serviceContext, httpContext, collection, query, CancellationToken.None).ConfigureAwait(false);
 
 			httpContext.Response.ContentType = "application/json";
 			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
@@ -126,7 +137,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 
 			// Query the local reliable collection.
 			var query = httpContext.Request.Query.Select(p => new KeyValuePair<string, string>(p.Key, p.Value));
-			var results = await stateManager.QueryPartitionAsync(collection, query, partitionId, CancellationToken.None).ConfigureAwait(false);
+			var results = await stateManager.QueryPartitionAsync(httpContext, collection, query, partitionId, CancellationToken.None).ConfigureAwait(false);
 
 			httpContext.Response.ContentType = "application/json";
 			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
@@ -163,7 +174,7 @@ namespace Microsoft.ServiceFabric.Services.Queryable
 			var operations = JsonConvert.DeserializeObject<EntityOperation<JToken, JToken>[]>(content);
 
 			// Update the reliable collections.
-			var results = await stateManager.ExecuteAsync(operations).ConfigureAwait(false);
+			var results = await stateManager.ExecuteAsync(httpContext, operations).ConfigureAwait(false);
 
 			httpContext.Response.ContentType = "application/json";
 			httpContext.Response.StatusCode = (int)HttpStatusCode.OK;
