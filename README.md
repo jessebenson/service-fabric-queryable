@@ -1,4 +1,4 @@
-# Microsoft.ServiceFabric.Services.Queryable
+# ServiceFabric.Extensions.Services.Queryable
 
 ## Getting Started
 
