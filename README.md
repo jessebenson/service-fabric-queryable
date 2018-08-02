@@ -69,6 +69,8 @@ StateManager.GetOrAddIndexedAsync("name",
 
 This will create a dictionary with secondary indices on `ValueType.Property1Name` and `ValueType.Property2Name`. To find out more about ReliableIndexedDictionary go to the [indexing repository](https://github.com/jessebenson/service-fabric-indexing)
 
+Note: you have to create your indexes the first time you define your dictionary. If you make them later, they will not be truly consistent with the dictionary and this can lead to failed requests or data corruption.
+
 Now, if we made a secondary index on a property called `Age` on our `ValueType`, these queries would be faster because of indexing:
 - ```$filter=Value.Age eq 20```
 - ```$filter=Value.Age gt 25```
