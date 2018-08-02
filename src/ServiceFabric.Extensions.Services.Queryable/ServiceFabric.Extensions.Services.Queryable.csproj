@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>3.1.274.0</Version>
+    <AssemblyVersion>3.1.274.0</AssemblyVersion>
+    <FileVersion>3.1.274.0</FileVersion>
+    <Description>Query support to enable the Data Explorer in Service Fabric Explorer.</Description>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageTags>Azure, ServiceFabric, Microsoft, Fabric, Data Explorer, Query</PackageTags>
+    <PackageProjectUrl>https://github.com/jessebenson/service-fabric-queryable</PackageProjectUrl>
+    <Platforms>AnyCPU;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNet.WebApi.OData" Version="5.7.0" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.2" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+    <PackageReference Include="Microsoft.Data.OData" Version="5.8.3" />
+    <PackageReference Include="Microsoft.ServiceFabric" Version="6.3.162" />
+    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.2.162" />
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+    <PackageReference Include="ServiceFabric.Extensions.Data.Indexing" Version="3.1.283" />
+    <PackageReference Include="System.Linq.Dynamic" Version="1.0.7" />
+  </ItemGroup>
+
+</Project>

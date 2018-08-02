@@ -13,14 +13,14 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.3.0" />
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.1.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="2.1.1" />
-    <PackageReference Include="Microsoft.ServiceFabric" Version="6.2.283" />
+    <PackageReference Include="Microsoft.ServiceFabric" Version="6.3.162" />
     <PackageReference Include="Microsoft.ServiceFabric.AspNetCore.Kestrel" Version="3.1.283" />
-    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.1.283" />
+    <PackageReference Include="Microsoft.ServiceFabric.Data" Version="3.2.162" />
     <PackageReference Include="Microsoft.ServiceFabric.Data.Indexing.Persistent" Version="3.1.283" />
-    <PackageReference Include="Microsoft.ServiceFabric.Services" Version="3.1.283" />
+    <PackageReference Include="Microsoft.ServiceFabric.Services" Version="3.2.162" />
     <PackageReference Include="Microsoft.ServiceFabric.Services.Queryable" Version="3.1.274" />
     <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
   </ItemGroup>
@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Microsoft.ServiceFabric.Services.Queryable\Microsoft.ServiceFabric.Services.Queryable.csproj" />
+    <ProjectReference Include="..\..\..\src\ServiceFabric.Extensions.Services.Queryable\ServiceFabric.Extensions.Services.Queryable.csproj" />
     <ProjectReference Include="..\Basic.Common\Basic.Common.csproj" />
   </ItemGroup>
 

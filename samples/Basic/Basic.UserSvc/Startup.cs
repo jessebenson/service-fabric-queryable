@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.ServiceFabric.Services.Queryable;
+using ServiceFabric.Extensions.Services.Queryable;
 
 namespace Basic.UserSvc
 {
@@ -35,6 +35,7 @@ namespace Basic.UserSvc
 			loggerFactory.AddDebug();
 			app.UseODataQueryable();
 			app.UseMvc();
+            ODataQueryableMiddleware.MaxElementsToReturn = 1000;
 		}
 	}
 }

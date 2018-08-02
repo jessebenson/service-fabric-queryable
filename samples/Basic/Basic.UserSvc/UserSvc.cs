@@ -14,7 +14,7 @@ using Microsoft.ServiceFabric.Services.Communication.Runtime;
 using Microsoft.ServiceFabric.Services.Runtime;
 using Basic.Common;
 using Microsoft.ServiceFabric.Data.Indexing.Persistent;
-using Microsoft.ServiceFabric.Services.Queryable.LINQ;
+using ServiceFabric.Extensions.Services.Queryable.LINQ;
 
 namespace Basic.UserSvc
 {

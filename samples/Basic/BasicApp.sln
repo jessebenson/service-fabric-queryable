@@ -18,7 +18,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Basic.ProductSvc", "Basic.P
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Basic.CarSvc", "Basic.CarSvc\Basic.CarSvc.csproj", "{49B0C294-F773-4AD8-8330-4E82B6CB35C7}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.ServiceFabric.Services.Queryable", "..\..\src\Microsoft.ServiceFabric.Services.Queryable\Microsoft.ServiceFabric.Services.Queryable.csproj", "{4AE2FACA-0A31-4B6B-924D-5D2765C00B92}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.ServiceFabric.Services.Queryable", "..\..\src\ServiceFabric.Extensions.Services.Queryable\ServiceFabric.Extensions.Services.Queryable.csproj", "{4AE2FACA-0A31-4B6B-924D-5D2765C00B92}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
