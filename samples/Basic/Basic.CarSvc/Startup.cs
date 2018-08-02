@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.ServiceFabric.Services.Queryable;
+using ServiceFabric.Extensions.Services.Queryable;
 
 namespace Basic.CarSvc
 {

@@ -1,10 +1,40 @@
-# Microsoft.ServiceFabric.Services.Queryable
+# ServiceFabric.Extensions.Services.Queryable
 
-Enable Data Explorer and query support for your stateful services in Service Fabric via the OData protocol.  I am actively working on integrating the Data Explorer into the Service Fabric Explorer.  Below is a preview (not yet available) of what it will look like:
+## Getting Started
 
-![](images/data-explorer-query.png)
+1. Create a stateful ASP.NET Core service.
 
-Add the ODataQueryable middleware to your stateful services (using ASP.NET Core stateful services), ensure Reverse Proxy is enabled, and start querying your reliable collections.  If your service is named 'fabric:/MyApp/MyService' and your reliable dictionary is named 'my-dictionary', try queries like:
+2. Add the **ServiceFabric.Extensions.Services.Queryable** nuget package.
+
+3. Add the **ODataQueryable** middleware to your Startup.cs.  This will intercept calls to the /$query endpoint to expose OData query capabilities over the reliable collections in your service.
+
+```csharp
+using ServiceFabric.Extensions.Services.Queryable;
+
+public class Startup
+{
+	public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+	{
+		...
+		app.UseODataQueryable();
+		...
+	}
+}
+```
+Add the ODataQueryable middleware to your stateful services (using ASP.NET Core stateful services), ensure Reverse Proxy is enabled, and start querying your reliable collections.  
+
+## Use `rcctl` to query your middleware
+[There is a command line tool you can use to query your middleware endpoints called `rcctl`.](https://github.com/shalabhms/reliable-collections-cli)
+
+You can install it and start using it with
+
+```shell
+pip install rcctl
+```
+
+## Use REST calls to query your middleware
+
+You can interact directly with the middleware by constructing REST calls. If your service is named 'fabric:/MyApp/MyService' and your reliable dictionary is named 'my-dictionary', try queries like:
 
 Get OData metadata about a single partition stateful service:
 - ```GET http://localhost:19081/MyApp/MyService/$query/$metadata```
@@ -39,6 +69,8 @@ StateManager.GetOrAddIndexedAsync("name",
 
 This will create a dictionary with secondary indices on `ValueType.Property1Name` and `ValueType.Property2Name`. To find out more about ReliableIndexedDictionary go to the [indexing repository](https://github.com/jessebenson/service-fabric-indexing)
 
+Note: you have to create your indexes the first time you define your dictionary. If you make them later, they will not be truly consistent with the dictionary and this can lead to failed requests or data corruption.
+
 Now, if we made a secondary index on a property called `Age` on our `ValueType`, these queries would be faster because of indexing:
 - ```$filter=Value.Age eq 20```
 - ```$filter=Value.Age gt 25```
@@ -72,29 +104,6 @@ var query = qd.Where(x => x.Name.CompareTo("Name1") >= 0);
 Some import notes for querying:
 1. Put all your WHERE logic in a single `Where` statement and join using `&&` and `||` operators, as the query may not be efficient if it is spread across multiple WHERE clauses.
 2. If you want to compare an IComparable type that does not have ">", "<=" operators, you must give it in the form: `property.CompareTo(constant) '>,<,<=,=>' 0` 
-
-
-## Getting Started
-
-1. Create a stateful ASP.NET Core services.
-
-2. Add the **Microsoft.ServiceFabric.Services.Queryable** nuget package.
-
-3. Add the **ODataQueryable** middleware to your Startup.cs.  This will intercept calls to the /$query endpoint to expose OData query capabilities over the reliable collections in your service.
-
-```csharp
-using Microsoft.ServiceFabric.Services.Queryable;
-
-public class Startup
-{
-	public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
-	{
-		...
-		app.UseODataQueryable();
-		...
-	}
-}
-```
 
 ## Samples
 
