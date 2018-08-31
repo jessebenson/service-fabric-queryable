@@ -237,7 +237,7 @@ namespace ServiceFabric.Extensions.Services.Queryable
 			if (e is AggregateException)
 				return InternalServerError(httpContext, (e.InnerException ?? e).Message);
 
-			return InternalServerError(httpContext, e.Message);
+			return InternalServerError(httpContext, e.ToString());
 		}
 
 		private Task HandleCORS(HttpContext httpContext)
